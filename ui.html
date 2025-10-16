@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    /* Figma Design System Base Styles */
+    :root {
+      --space-extra-small: 8px;
+      --space-small: 12px;
+      --space-medium: 16px;
+      --font-size-11: 11px;
+      --font-size-12: 12px;
+      --font-weight-regular: 400;
+      --font-weight-semibold: 600;
+      --line-height-16: 16px;
+      --border-radius-2: 2px;
+      --border-radius-6: 6px;
+    }
+    
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      padding: var(--space-small);
+      background: var(--figma-color-bg);
+      color: var(--figma-color-text);
+      font-size: var(--font-size-11);
+      line-height: var(--line-height-16);
+      font-weight: var(--font-weight-regular);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    
+    div, span {
+      user-select: none;
+    }
+
+    /* Section Headers */
+    h2, h3 {
+      font-size: var(--font-size-11);
+      font-weight: var(--font-weight-semibold);
+      color: var(--figma-color-text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin: 0;
+    }
+
+    .info-box {
+      padding: 12px;
+      margin-bottom: 16px;
+      background: var(--figma-color-bg-secondary);
+      border-radius: 6px;
+      border: 1px solid var(--figma-color-border);
+    }
+
+    .info-box p {
+      font-size: 11px;
+      line-height: 1.5;
+      color: var(--figma-color-text-secondary);
+    }
+
+    .controls {
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--figma-color-border);
+    }
+
+    .control-group {
+      margin-bottom: 12px;
+    }
+
+    label {
+      display: block;
+      font-size: 11px;
+      font-weight: 500;
+      margin-bottom: 4px;
+      color: var(--figma-color-text-secondary);
+    }
+
+    select, input[type="text"], input[type="number"] {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid var(--figma-color-border);
+      border-radius: 4px;
+      background: var(--figma-color-bg);
+      color: var(--figma-color-text);
+      font-size: 12px;
+    }
+
+    .component-list {
+      max-height: 380px;
+      overflow-y: auto;
+      margin-bottom: 16px;
+    }
+
+    .component-item {
+      padding: 14px;
+      margin-bottom: 10px;
+      border: 1px solid var(--figma-color-border);
+      border-radius: 8px;
+      background: var(--figma-color-bg-secondary);
+    }
+
+    .component-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 10px;
+    }
+
+    .component-name {
+      font-weight: 600;
+      font-size: 13px;
+      flex: 1;
+    }
+
+    .variant-badge {
+      background: var(--figma-color-bg-brand);
+      color: white;
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-size: 10px;
+      font-weight: 600;
+      white-space: nowrap;
+      margin-left: 8px;
+    }
+
+    .variant-info {
+      font-size: 10px;
+      color: var(--figma-color-text-tertiary);
+      margin-bottom: 10px;
+      padding: 6px;
+      background: var(--figma-color-bg);
+      border-radius: 4px;
+    }
+
+    .variant-props {
+      margin-top: 4px;
+    }
+
+    .component-fields {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .field label {
+      font-size: 10px;
+    }
+
+    .tag-input-container {
+      display: flex;
+      gap: 4px;
+    }
+
+    .tag-input-container input {
+      flex: 1;
+    }
+
+    .tags-display {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 4px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      background: var(--figma-color-bg-tertiary);
+      border: 1px solid var(--figma-color-border);
+      color: var(--figma-color-text);
+      border-radius: 12px;
+      font-size: 10px;
+    }
+
+    .tag-remove {
+      cursor: pointer;
+      font-weight: bold;
+      opacity: 0.6;
+    }
+
+    .tag-remove:hover {
+      opacity: 1;
+    }
+
+    /* Figma Button Styles */
+    button {
+      font-family: inherit;
+      font-size: var(--font-size-11);
+      font-weight: var(--font-weight-semibold);
+      line-height: var(--line-height-16);
+      padding: var(--space-extra-small) var(--space-small);
+      border-radius: var(--border-radius-6);
+      border: none;
+      cursor: pointer;
+      transition: background 0.1s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      height: 32px;
+    }
+    
+    .primary-button {
+      width: 100%;
+      background: var(--figma-color-bg-brand);
+      color: var(--figma-color-text-onbrand);
+      margin-bottom: 0;
+    }
+    
+    .primary-button:hover:not(:disabled) {
+      background: var(--figma-color-bg-brand-hover);
+    }
+    
+    .primary-button:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+    
+    .secondary-button {
+      background: transparent;
+      color: var(--figma-color-text);
+      border: 1px solid var(--figma-color-border);
+    }
+    
+    .secondary-button:hover {
+      background: var(--figma-color-bg-hover);
+    }
+    
+    /* Figma Checkbox Styles */
+    input[type="checkbox"] {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      border: 1px solid var(--figma-color-border);
+      border-radius: var(--border-radius-2);
+      background: var(--figma-color-bg);
+      cursor: pointer;
+      position: relative;
+      flex-shrink: 0;
+      margin: 0;
+    }
+    
+    input[type="checkbox"]:hover:not(:disabled) {
+      border-color: var(--figma-color-border-selected);
+    }
+    
+    input[type="checkbox"]:checked {
+      background: var(--figma-color-bg-brand);
+      border-color: var(--figma-color-bg-brand);
+    }
+    
+    input[type="checkbox"]:checked::after {
+      content: '';
+      position: absolute;
+      left: 3px;
+      top: 0px;
+      width: 5px;
+      height: 8px;
+      border: solid white;
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+    }
+    
+    input[type="checkbox"]:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    .error-message {
+      padding: 20px;
+      text-align: center;
+      color: var(--figma-color-text-secondary);
+      background: var(--figma-color-bg-secondary);
+      border-radius: 8px;
+      border: 1px solid var(--figma-color-border);
+    }
+  </style>
+</head>
+<body>
+  <!-- Hidden for now -->
+  <div style="display: none;">
+    <h2>Component Organizer</h2>
+
+    <div class="info-box">
+      <p>Select component sets to organize them into a labeled sticker sheet. All variant combinations will be generated automatically. Change your selection to update the list.</p>
+    </div>
+
+    <div class="controls">
+      <div class="control-group">
+        <label>Sort Variants By</label>
+        <select id="sortBy">
+          <option value="name">Component Name</option>
+          <option value="order">Custom Order</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label>Layout Style</label>
+        <select id="groupBy">
+          <option value="component">By Component Set</option>
+          <option value="none">All Together</option>
+        </select>
+      </div>
+
+      <div class="control-group" style="display: flex; align-items: center; gap: 8px;">
+        <input type="checkbox" id="includeLightDark" checked style="width: auto; margin: 0;">
+        <label for="includeLightDark" style="margin: 0; cursor: pointer;">Include Light & Dark Mode sections</label>
+      </div>
+    </div>
+  </div>
+
+  <!-- Component list hidden - info shown in property expansion -->
+  <div style="display: none;">
+    <h2>Component Sets</h2>
+    <div class="component-list" id="componentList"></div>
+  </div>
+
+  <!-- Property Expansion Section - Figma style -->
+  <div style="margin-bottom: 8px;">
+    <div style="padding: 8px 0; border-bottom: 1px solid var(--figma-color-border);">
+      <h3 style="font-size: 11px; font-weight: 600; color: var(--figma-color-text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin: 0;">PROPERTIES</h3>
+    </div>
+    <div id="propertyExpansionOptions" style="padding: 8px 0;">
+      <div style="color: var(--figma-color-text-tertiary); font-size: 11px; padding: 8px;">
+        Select a component set to see available properties
+      </div>
+    </div>
+  </div>
+
+  <!-- Preview Section -->
+  <div style="margin-bottom: 8px;">
+    <div style="padding: 8px 0; border-bottom: 1px solid var(--figma-color-border);">
+      <div style="display: flex; align-items: center; justify-content: space-between;">
+        <h3 style="font-size: 11px; font-weight: 600; color: var(--figma-color-text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin: 0;">PREVIEW</h3>
+        <button id="toggleAllBtn" class="secondary-button" style="padding: 4px 8px; font-size: 11px; height: 24px; margin: 0;">
+          Select All
+        </button>
+      </div>
+    </div>
+    <div id="previewList" style="max-height: 400px; overflow-y: auto; margin-top: 8px; padding: 0;">
+      <div style="color: var(--figma-color-text-tertiary); font-style: italic; font-size: 11px; padding: 12px;">
+        Select properties to expand to see preview
+      </div>
+    </div>
+    <button class="secondary-button" id="refreshPreviewBtn" style="margin-top: 8px; margin-bottom: 0;">Refresh Preview</button>
+  </div>
+
+  <!-- Sticky generate button at bottom -->
+  <div style="position: sticky; bottom: 0; left: 0; right: 0; padding: 16px; background: var(--figma-color-bg); border-top: 1px solid var(--figma-color-border); margin: 0 -16px -16px -16px; z-index: 10;">
+    <button class="primary-button" id="generateBtn" disabled style="margin-bottom: 0;">Generate Sticker Sheet</button>
+  </div>
+
+  <script>
+    var componentSets = [];
+    var propertyExpansionSettings = {}; // Track which properties to expand for each component
+    var previewedCombinations = []; // All possible combinations
+    var selectedCombinations = {}; // Track which combinations are selected (all by default)
+    var previewViewMode = 'table'; // Always use table view
+    var tableSortColumn = null;
+    var tableSortDirection = 'asc'; // 'asc' or 'desc'
+
+    // Request initial data
+    parent.postMessage({ pluginMessage: { type: 'init-plugin' } }, '*');
+
+    window.onmessage = function(event) {
+      var msg = event.data.pluginMessage;
+
+      if (msg.type === 'error') {
+        var list = document.getElementById('componentList');
+        list.innerHTML = '<div class="error-message">' + msg.message + '</div>';
+        return;
+      }
+
+      if (msg.type === 'init') {
+        componentSets = msg.componentSets;
+        renderComponentSets();
+        renderPropertyExpansionOptions();
+      }
+    };
+
+    function renderComponentSets() {
+      var list = document.getElementById('componentList');
+      list.innerHTML = '';
+
+      if (componentSets.length === 0) {
+        list.innerHTML = '<div class="error-message">No component sets found in selection</div>';
+        return;
+      }
+
+      for (var i = 0; i < componentSets.length; i++) {
+        var compSet = componentSets[i];
+
+        var item = document.createElement('div');
+        item.className = 'component-item';
+
+        // Header with name and variant count
+        var header = document.createElement('div');
+        header.className = 'component-header';
+
+        var name = document.createElement('div');
+        name.className = 'component-name';
+        name.textContent = compSet.name;
+
+        var badge = document.createElement('span');
+        badge.className = 'variant-badge';
+        badge.textContent = compSet.variantCount + ' variants';
+
+        header.appendChild(name);
+        header.appendChild(badge);
+
+        // Variant properties info
+        var variantInfo = document.createElement('div');
+        variantInfo.className = 'variant-info';
+
+        var propNames = Object.keys(compSet.properties);
+        if (propNames.length > 0) {
+          var propsHtml = '<div class="variant-props"><strong>Properties:</strong><br>';
+          for (var p = 0; p < propNames.length; p++) {
+            var propName = propNames[p];
+            var values = compSet.properties[propName].values;
+            propsHtml += propName + ': ' + values.join(', ') + '<br>';
+          }
+          propsHtml += '</div>';
+          variantInfo.innerHTML = propsHtml;
+        } else {
+          variantInfo.innerHTML = 'No variant properties detected';
+        }
+
+        // Fields
+        // Fields hidden for now
+        var fields = document.createElement('div');
+        fields.className = 'component-fields';
+        fields.style.display = 'none';
+
+        item.appendChild(header);
+        item.appendChild(variantInfo);
+        item.appendChild(fields);
+        list.appendChild(item);
+
+        // Render existing tags
+        renderTags(compSet.id, compSet.tags || []);
+      }
+
+      // Add event listeners
+      var orderInputs = document.querySelectorAll('[data-field="order"]');
+      for (var i = 0; i < orderInputs.length; i++) {
+        orderInputs[i].addEventListener('change', handleFieldChange);
+      }
+
+      var nestedCheckboxes = document.querySelectorAll('[data-field="includeNested"]');
+      for (var i = 0; i < nestedCheckboxes.length; i++) {
+        nestedCheckboxes[i].addEventListener('change', handleCheckboxChange);
+      }
+
+      var tagInputs = document.querySelectorAll('[data-field="tag-input"]');
+      for (var i = 0; i < tagInputs.length; i++) {
+        tagInputs[i].addEventListener('keypress', handleTagAdd);
+      }
+    }
+
+    function renderTags(compSetId, tags) {
+      var display = document.querySelector('.tags-display[data-id="' + compSetId + '"]');
+      if (!display) return;
+
+      display.innerHTML = '';
+
+      for (var i = 0; i < tags.length; i++) {
+        var tag = tags[i];
+        var tagEl = document.createElement('span');
+        tagEl.className = 'tag';
+        tagEl.innerHTML = tag + ' <span class="tag-remove" data-id="' + compSetId + '" data-tag="' + tag + '">×</span>';
+        display.appendChild(tagEl);
+      }
+
+      var removeButtons = display.querySelectorAll('.tag-remove');
+      for (var i = 0; i < removeButtons.length; i++) {
+        removeButtons[i].addEventListener('click', handleTagRemove);
+      }
+    }
+
+    function handleFieldChange(e) {
+      var id = e.target.dataset.id;
+      var field = e.target.dataset.field;
+      var value = e.target.value;
+
+      var compSet = null;
+      for (var i = 0; i < componentSets.length; i++) {
+        if (componentSets[i].id === id) {
+          compSet = componentSets[i];
+          break;
+        }
+      }
+
+      if (compSet) {
+        compSet[field] = field === 'order' ? parseInt(value) : value;
+        updateComponentSet(compSet);
+      }
+    }
+
+    function handleCheckboxChange(e) {
+      var id = e.target.dataset.id;
+      var field = e.target.dataset.field;
+      var value = e.target.checked;
+
+      var compSet = null;
+      for (var i = 0; i < componentSets.length; i++) {
+        if (componentSets[i].id === id) {
+          compSet = componentSets[i];
+          break;
+        }
+      }
+
+      if (compSet) {
+        compSet[field] = value;
+        updateComponentSet(compSet);
+      }
+    }
+
+    function handleTagAdd(e) {
+      if (e.key === 'Enter') {
+        var id = e.target.dataset.id;
+        var value = e.target.value.trim();
+
+        if (value) {
+          var compSet = null;
+          for (var i = 0; i < componentSets.length; i++) {
+            if (componentSets[i].id === id) {
+              compSet = componentSets[i];
+              break;
+            }
+          }
+
+          if (compSet) {
+            if (!compSet.tags) compSet.tags = [];
+            var alreadyExists = false;
+            for (var j = 0; j < compSet.tags.length; j++) {
+              if (compSet.tags[j] === value) {
+                alreadyExists = true;
+                break;
+              }
+            }
+            if (!alreadyExists) {
+              compSet.tags.push(value);
+              updateComponentSet(compSet);
+              renderTags(id, compSet.tags);
+            }
+            e.target.value = '';
+          }
+        }
+      }
+    }
+
+    function handleTagRemove(e) {
+      var id = e.target.dataset.id;
+      var tag = e.target.dataset.tag;
+
+      var compSet = null;
+      for (var i = 0; i < componentSets.length; i++) {
+        if (componentSets[i].id === id) {
+          compSet = componentSets[i];
+          break;
+        }
+      }
+
+      if (compSet && compSet.tags) {
+        var newTags = [];
+        for (var j = 0; j < compSet.tags.length; j++) {
+          if (compSet.tags[j] !== tag) {
+            newTags.push(compSet.tags[j]);
+          }
+        }
+        compSet.tags = newTags;
+        updateComponentSet(compSet);
+        renderTags(id, compSet.tags);
+      }
+    }
+
+    function updateComponentSet(compSet) {
+      parent.postMessage({
+        pluginMessage: {
+          type: 'update-component-set',
+          data: compSet
+        }
+      }, '*');
+    }
+
+    function generatePreview() {
+      var previewList = document.getElementById('previewList');
+      previewList.innerHTML = '';
+      previewedCombinations = [];
+      selectedCombinations = {};
+
+      if (componentSets.length === 0) {
+        previewList.innerHTML = '<div style="color: var(--figma-color-text-tertiary); font-style: italic; font-size: 11px; padding: 8px;">No component sets selected</div>';
+        return;
+      }
+
+      // Get which properties to expand
+      var propsToExpand = [];
+      for (var propName in propertyExpansionSettings) {
+        if (propertyExpansionSettings[propName] === true) {
+          propsToExpand.push(propName);
+        }
+      }
+
+      console.log('Generating preview for props:', propsToExpand);
+
+      // Generate combinations for each component set
+      for (var c = 0; c < componentSets.length; c++) {
+        var compSet = componentSets[c];
+        var properties = compSet.properties || {};
+
+        // Get the properties that should be expanded for this component
+        var expandProps = [];
+        for (var i = 0; i < propsToExpand.length; i++) {
+          var propName = propsToExpand[i];
+          if (properties[propName]) {
+            expandProps.push({
+              name: propName,
+              values: properties[propName].values
+            });
+          }
+        }
+
+        // Generate all combinations
+        var combinations = generateCombinations(expandProps);
+        
+        console.log('Generated', combinations.length, 'combinations for', compSet.name);
+
+        // Store combinations
+        if (combinations.length > 0) {
+          // Add checkbox for each combination
+          for (var i = 0; i < combinations.length; i++) {
+            var combo = combinations[i];
+            var comboKey = compSet.id + ':' + JSON.stringify(combo);
+            
+            previewedCombinations.push({
+              componentSetId: compSet.id,
+              componentSetName: compSet.name,
+              properties: combo
+            });
+            
+            // Preserve existing selection state if it exists, otherwise default to false
+            if (selectedCombinations[comboKey] === undefined) {
+              selectedCombinations[comboKey] = false;
+            }
+          }
+        }
+      }
+
+    // Always render table view
+    renderTableView();
+
+    if (previewedCombinations.length === 0) {
+      previewList.innerHTML = '<div style="color: var(--figma-color-text-tertiary); font-style: italic; font-size: 11px; padding: 12px; text-align: center;">No combinations to show. Try checking some properties to expand.</div>';
+    } else {
+      // Update toggle button text based on selection state
+      var toggleBtn = document.getElementById('toggleAllBtn');
+      var allChecked = previewedCombinations.every(function(combo) {
+        var comboKey = combo.componentSetId + ':' + JSON.stringify(combo.properties);
+        return selectedCombinations[comboKey] === true;
+      });
+      toggleBtn.textContent = allChecked ? 'Deselect All' : 'Select All';
+    }
+    
+    // Update generate button state
+    updateGenerateButton();
+  }
+
+    function renderListView() {
+      var previewList = document.getElementById('previewList');
+      previewList.innerHTML = '';
+      
+      // Group by component set
+      var byComponentSet = {};
+      for (var i = 0; i < previewedCombinations.length; i++) {
+        var item = previewedCombinations[i];
+        if (!byComponentSet[item.componentSetName]) {
+          byComponentSet[item.componentSetName] = [];
+        }
+        byComponentSet[item.componentSetName].push(item);
+      }
+      
+      for (var compSetName in byComponentSet) {
+        var items = byComponentSet[compSetName];
+        
+        // Add component header
+        var header = document.createElement('div');
+        header.style.fontWeight = '600';
+        header.style.fontSize = '12px';
+        header.style.marginTop = '8px';
+        header.style.marginBottom = '4px';
+        header.style.padding = '4px';
+        header.style.background = 'var(--figma-color-bg)';
+        header.style.borderRadius = '4px';
+        header.textContent = compSetName + ' (' + items.length + ' variants)';
+        previewList.appendChild(header);
+        
+        // Add each combination
+        for (var i = 0; i < items.length; i++) {
+          var item = items[i];
+          var comboKey = item.componentSetId + ':' + JSON.stringify(item.properties);
+          
+          var comboDiv = document.createElement('div');
+          comboDiv.style.padding = '8px 12px';
+          comboDiv.style.fontSize = '11px';
+          comboDiv.style.display = 'flex';
+          comboDiv.style.alignItems = 'center';
+          comboDiv.style.gap = '8px';
+          comboDiv.style.borderBottom = '1px solid var(--figma-color-border)';
+          comboDiv.style.transition = 'background 0.1s ease';
+          comboDiv.style.cursor = 'pointer';
+          
+          // Hover effect
+          comboDiv.addEventListener('mouseenter', function() {
+            this.style.background = 'var(--figma-color-bg-hover)';
+          });
+          comboDiv.addEventListener('mouseleave', function() {
+            this.style.background = 'transparent';
+          });
+          
+          var checkbox = document.createElement('input');
+          checkbox.type = 'checkbox';
+          checkbox.checked = selectedCombinations[comboKey] === true;
+          checkbox.dataset.comboKey = comboKey;
+          checkbox.style.margin = '0';
+          
+          var label = document.createElement('label');
+          label.style.cursor = 'pointer';
+          label.style.flex = '1';
+          label.style.marginBottom = '0';
+          label.style.userSelect = 'none';
+          
+          var labelParts = [];
+          for (var prop in item.properties) {
+            labelParts.push(prop + ': ' + item.properties[prop]);
+          }
+          label.textContent = labelParts.join(', ');
+          
+          checkbox.addEventListener('change', function(e) {
+            selectedCombinations[e.target.dataset.comboKey] = e.target.checked;
+            updateGenerateButton();
+          });
+          
+          // Make the entire row clickable to toggle checkbox
+          comboDiv.addEventListener('click', function(e) {
+            var cb = this.querySelector('input[type="checkbox"]');
+            if (e.target !== cb) {
+              cb.checked = !cb.checked;
+              selectedCombinations[cb.dataset.comboKey] = cb.checked;
+              updateGenerateButton();
+            }
+          });
+          
+          comboDiv.appendChild(checkbox);
+          comboDiv.appendChild(label);
+          previewList.appendChild(comboDiv);
+        }
+      }
+    }
+
+    function renderTableView() {
+      var previewList = document.getElementById('previewList');
+      previewList.innerHTML = '';
+      
+      if (previewedCombinations.length === 0) return;
+      
+      // Get all unique property names
+      var allProps = {};
+      for (var i = 0; i < previewedCombinations.length; i++) {
+        for (var prop in previewedCombinations[i].properties) {
+          allProps[prop] = true;
+        }
+      }
+      var propNames = Object.keys(allProps);
+      
+      // Create table
+      var table = document.createElement('table');
+      table.style.width = '100%';
+      table.style.borderCollapse = 'collapse';
+      table.style.fontSize = '11px';
+      
+      // Create header row
+      var thead = document.createElement('thead');
+      var headerRow = document.createElement('tr');
+      headerRow.style.background = 'var(--figma-color-bg)';
+      headerRow.style.borderBottom = '2px solid var(--figma-color-border)';
+      
+      // Checkbox column
+      var checkboxTh = document.createElement('th');
+      checkboxTh.style.padding = '8px';
+      checkboxTh.style.textAlign = 'left';
+      checkboxTh.style.width = '30px';
+      checkboxTh.style.position = 'sticky';
+      checkboxTh.style.top = '0';
+      checkboxTh.style.background = 'var(--figma-color-bg)';
+      checkboxTh.style.zIndex = '1';
+      headerRow.appendChild(checkboxTh);
+      
+      // Component Set column
+      var compSetTh = document.createElement('th');
+      compSetTh.style.padding = '8px';
+      compSetTh.style.textAlign = 'left';
+      compSetTh.style.fontWeight = '600';
+      compSetTh.style.cursor = 'pointer';
+      compSetTh.style.userSelect = 'none';
+      compSetTh.style.position = 'sticky';
+      compSetTh.style.top = '0';
+      compSetTh.style.background = 'var(--figma-color-bg)';
+      compSetTh.style.zIndex = '1';
+      compSetTh.textContent = 'Component Set' + (tableSortColumn === '_componentSet' ? (tableSortDirection === 'asc' ? ' ▲' : ' ▼') : '');
+      compSetTh.dataset.sortKey = '_componentSet';
+      compSetTh.addEventListener('click', function() {
+        sortTable(this.dataset.sortKey);
+      });
+      headerRow.appendChild(compSetTh);
+      
+      // Property columns
+      for (var p = 0; p < propNames.length; p++) {
+        var propName = propNames[p];
+        var th = document.createElement('th');
+        th.style.padding = '8px';
+        th.style.textAlign = 'left';
+        th.style.fontWeight = '600';
+        th.style.cursor = 'pointer';
+        th.style.userSelect = 'none';
+        th.style.position = 'sticky';
+        th.style.top = '0';
+        th.style.background = 'var(--figma-color-bg)';
+        th.style.zIndex = '1';
+        th.textContent = propName + (tableSortColumn === propName ? (tableSortDirection === 'asc' ? ' ▲' : ' ▼') : '');
+        th.dataset.sortKey = propName;
+        th.addEventListener('click', function() {
+          sortTable(this.dataset.sortKey);
+        });
+        headerRow.appendChild(th);
+      }
+      
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+      
+      // Create body
+      var tbody = document.createElement('tbody');
+      
+      // Sort combinations if needed
+      var sortedCombos = previewedCombinations.slice();
+      if (tableSortColumn) {
+        sortedCombos.sort(function(a, b) {
+          var aVal = tableSortColumn === '_componentSet' ? a.componentSetName : (a.properties[tableSortColumn] || '');
+          var bVal = tableSortColumn === '_componentSet' ? b.componentSetName : (b.properties[tableSortColumn] || '');
+          
+          if (aVal < bVal) return tableSortDirection === 'asc' ? -1 : 1;
+          if (aVal > bVal) return tableSortDirection === 'asc' ? 1 : -1;
+          return 0;
+        });
+      }
+      
+      for (var i = 0; i < sortedCombos.length; i++) {
+        var item = sortedCombos[i];
+        var comboKey = item.componentSetId + ':' + JSON.stringify(item.properties);
+        
+        var tr = document.createElement('tr');
+        tr.style.borderBottom = '1px solid var(--figma-color-border)';
+        tr.style.cursor = 'pointer';
+        tr.style.transition = 'background 0.1s ease';
+        
+        tr.addEventListener('mouseenter', function() {
+          this.style.background = 'var(--figma-color-bg-hover)';
+        });
+        tr.addEventListener('mouseleave', function() {
+          this.style.background = 'transparent';
+        });
+        
+        // Checkbox cell
+        var checkboxTd = document.createElement('td');
+        checkboxTd.style.padding = '8px';
+        var checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = selectedCombinations[comboKey] === true;
+        checkbox.dataset.comboKey = comboKey;
+        checkbox.style.margin = '0';
+        checkbox.addEventListener('change', function(e) {
+          selectedCombinations[e.target.dataset.comboKey] = e.target.checked;
+          updateGenerateButton();
+          e.stopPropagation();
+        });
+        checkboxTd.appendChild(checkbox);
+        tr.appendChild(checkboxTd);
+        
+        // Component Set cell
+        var compSetTd = document.createElement('td');
+        compSetTd.style.padding = '8px';
+        compSetTd.style.fontWeight = '500';
+        compSetTd.textContent = item.componentSetName;
+        tr.appendChild(compSetTd);
+        
+        // Property cells
+        for (var p = 0; p < propNames.length; p++) {
+          var propName = propNames[p];
+          var td = document.createElement('td');
+          td.style.padding = '8px';
+          var value = item.properties[propName];
+          td.textContent = value !== undefined ? String(value) : '—';
+          td.style.color = value !== undefined ? 'inherit' : 'var(--figma-color-text-tertiary)';
+          tr.appendChild(td);
+        }
+        
+        // Make row clickable
+        tr.addEventListener('click', function(e) {
+          var cb = this.querySelector('input[type="checkbox"]');
+        if (e.target !== cb && e.target.tagName !== 'INPUT') {
+          cb.checked = !cb.checked;
+          selectedCombinations[cb.dataset.comboKey] = cb.checked;
+          updateGenerateButton();
+        }
+        });
+        
+        tbody.appendChild(tr);
+      }
+      
+      table.appendChild(tbody);
+      previewList.appendChild(table);
+    }
+
+    function sortTable(sortKey) {
+      if (tableSortColumn === sortKey) {
+        // Toggle direction
+        tableSortDirection = tableSortDirection === 'asc' ? 'desc' : 'asc';
+      } else {
+        tableSortColumn = sortKey;
+        tableSortDirection = 'asc';
+      }
+      renderTableView();
+    }
+
+    function updateGenerateButton() {
+      var generateBtn = document.getElementById('generateBtn');
+      var hasSelection = false;
+      
+      for (var key in selectedCombinations) {
+        if (selectedCombinations[key] === true) {
+          hasSelection = true;
+          break;
+        }
+      }
+      
+      generateBtn.disabled = !hasSelection;
+      generateBtn.style.opacity = hasSelection ? '1' : '0.5';
+      generateBtn.style.cursor = hasSelection ? 'pointer' : 'not-allowed';
+    }
+
+    function generateCombinations(properties) {
+      if (properties.length === 0) {
+        return [{}];
+      }
+
+      var results = [];
+      
+      function recurse(index, current) {
+        if (index === properties.length) {
+          results.push(Object.assign({}, current));
+          return;
+        }
+
+        var prop = properties[index];
+        var values = prop.values;
+
+        for (var i = 0; i < values.length; i++) {
+          current[prop.name] = values[i];
+          recurse(index + 1, current);
+        }
+      }
+
+      recurse(0, {});
+      return results;
+    }
+
+    function renderPropertyExpansionOptions() {
+      var container = document.getElementById('propertyExpansionOptions');
+      container.innerHTML = '';
+
+      if (componentSets.length === 0) {
+        container.innerHTML = '<div style="color: var(--figma-color-text-tertiary); font-style: italic;">No component sets selected</div>';
+        return;
+      }
+
+      // Collect all unique properties across all component sets
+      var allProperties = {};
+
+      for (var i = 0; i < componentSets.length; i++) {
+        var compSet = componentSets[i];
+        var props = compSet.properties || {};
+
+        for (var propName in props) {
+          var prop = props[propName];
+          if (!allProperties[propName]) {
+            allProperties[propName] = {
+              type: prop.type,
+              values: prop.values,
+              componentSets: []
+            };
+          }
+          allProperties[propName].componentSets.push(compSet.name);
+        }
+      }
+
+      var propNames = Object.keys(allProperties);
+
+      if (propNames.length === 0) {
+        container.innerHTML = '<div style="color: var(--figma-color-text-tertiary); font-style: italic;">No properties found</div>';
+        return;
+      }
+
+      // Render checkbox for each property
+      for (var i = 0; i < propNames.length; i++) {
+        var propName = propNames[i];
+        var prop = allProperties[propName];
+
+        var propDiv = document.createElement('div');
+        propDiv.style.display = 'flex';
+        propDiv.style.alignItems = 'center';
+        propDiv.style.padding = '0 8px';
+        propDiv.style.height = '32px';
+        propDiv.style.cursor = 'pointer';
+        propDiv.style.borderRadius = '2px';
+        propDiv.style.transition = 'background 0.05s ease';
+        
+        // Hover effect
+        propDiv.addEventListener('mouseenter', function() {
+          if (!checkbox.disabled) {
+            this.style.background = 'var(--figma-color-bg-hover)';
+          }
+        });
+        propDiv.addEventListener('mouseleave', function() {
+          this.style.background = 'transparent';
+        });
+        
+        // Click anywhere to toggle
+        propDiv.addEventListener('click', function(e) {
+          if (e.target !== checkbox && !checkbox.disabled) {
+            checkbox.checked = !checkbox.checked;
+            propertyExpansionSettings[checkbox.value] = checkbox.checked;
+            generatePreview();
+          }
+        });
+
+        var checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.id = 'expand-' + propName;
+        checkbox.value = propName;
+        
+        // Auto-check VARIANT properties (main variant types) and make them required
+        var isVariantProp = prop.type === 'VARIANT';
+        checkbox.checked = isVariantProp || prop.type === 'BOOLEAN';
+        checkbox.disabled = isVariantProp;
+        checkbox.style.margin = '0 8px 0 0';
+        checkbox.style.flexShrink = '0';
+        checkbox.style.width = '14px';
+        checkbox.style.height = '14px';
+
+        // Icon for property type
+        var iconContainer = document.createElement('div');
+        iconContainer.style.width = '14px';
+        iconContainer.style.height = '14px';
+        iconContainer.style.marginRight = '6px';
+        iconContainer.style.flexShrink = '0';
+        iconContainer.style.display = 'flex';
+        iconContainer.style.alignItems = 'center';
+        iconContainer.style.justifyContent = 'center';
+        iconContainer.style.fontSize = '11px';
+        iconContainer.style.color = 'var(--figma-color-text-tertiary)';
+        iconContainer.style.opacity = '0.8';
+        
+        // Set icon based on property type
+        var icon = '';
+        if (prop.type === 'VARIANT') {
+          icon = '◇'; // Diamond for variant
+        } else if (prop.type === 'BOOLEAN') {
+          icon = '☐'; // Checkbox for boolean
+        } else if (prop.type === 'TEXT') {
+          icon = 'T'; // T for text
+        } else if (prop.type === 'INSTANCE_SWAP') {
+          icon = '⇄'; // Swap icon
+        } else {
+          icon = '•'; // Dot for other types
+        }
+        iconContainer.textContent = icon;
+        
+        // Label container with property name and values
+        var labelContainer = document.createElement('div');
+        labelContainer.style.flex = '1';
+        labelContainer.style.minWidth = '0';
+        labelContainer.style.cursor = 'pointer';
+        
+        var label = document.createElement('div');
+        label.style.cursor = 'pointer';
+        label.style.fontSize = '11px';
+        label.style.fontWeight = '400';
+        label.style.display = 'flex';
+        label.style.alignItems = 'center';
+        label.style.minWidth = '0';
+        label.style.color = 'var(--figma-color-text)';
+        label.style.whiteSpace = 'nowrap';
+        label.style.overflow = 'hidden';
+        label.style.textOverflow = 'ellipsis';
+        
+        var nameSpan = document.createElement('span');
+        nameSpan.textContent = propName;
+        nameSpan.style.flexShrink = '0';
+        label.appendChild(nameSpan);
+        
+        // Property values as secondary text
+        if (prop.values && prop.values.length > 0) {
+          var separator = document.createElement('span');
+          separator.textContent = ' · ';
+          separator.style.color = 'var(--figma-color-text-tertiary)';
+          separator.style.margin = '0 2px';
+          separator.style.flexShrink = '0';
+          label.appendChild(separator);
+          
+          var valuesText = document.createElement('span');
+          valuesText.style.color = 'var(--figma-color-text-tertiary)';
+          valuesText.style.whiteSpace = 'nowrap';
+          valuesText.style.overflow = 'hidden';
+          valuesText.style.textOverflow = 'ellipsis';
+          valuesText.textContent = prop.values.join(', ');
+          label.appendChild(valuesText);
+        }
+        
+        labelContainer.appendChild(label);
+
+        propDiv.appendChild(checkbox);
+        propDiv.appendChild(iconContainer);
+        propDiv.appendChild(labelContainer);
+        
+        // Add required badge for variant properties
+        if (isVariantProp) {
+          var requiredBadge = document.createElement('span');
+          requiredBadge.textContent = 'Required';
+          requiredBadge.style.fontSize = '10px';
+          requiredBadge.style.padding = '2px 6px';
+          requiredBadge.style.background = 'var(--figma-color-bg-secondary)';
+          requiredBadge.style.color = 'var(--figma-color-text-tertiary)';
+          requiredBadge.style.borderRadius = '3px';
+          requiredBadge.style.fontWeight = '500';
+          requiredBadge.style.marginLeft = 'auto';
+          requiredBadge.style.marginRight = '0';
+          requiredBadge.style.flexShrink = '0';
+          propDiv.appendChild(requiredBadge);
+        }
+
+
+
+        container.appendChild(propDiv);
+
+        // Store initial state
+        propertyExpansionSettings[propName] = checkbox.checked;
+
+        // Add change listener
+        checkbox.addEventListener('change', function(e) {
+          propertyExpansionSettings[e.target.value] = e.target.checked;
+          generatePreview(); // Refresh preview when properties change
+        });
+      }
+    }
+
+    document.getElementById('refreshPreviewBtn').addEventListener('click', function() {
+      generatePreview();
+    });
+
+    document.getElementById('generateBtn').addEventListener('click', function() {
+      var sortBy = document.getElementById('sortBy').value;
+      var groupBy = document.getElementById('groupBy').value;
+      var includeLightDark = document.getElementById('includeLightDark').checked;
+
+      // Filter combinations to only include selected ones
+      var combinationsToGenerate = [];
+      console.log('=== GENERATE BUTTON CLICKED ===');
+      console.log('Total previewedCombinations:', previewedCombinations.length);
+
+      // Get actual checked state from DOM (source of truth)
+      var checkedCheckboxes = document.querySelectorAll('input[type="checkbox"][data-combo-key]:checked');
+      console.log('✓ Checked checkboxes in DOM:', checkedCheckboxes.length);
+
+      // Rebuild selectedCombinations from actual DOM state
+      selectedCombinations = {};
+      for (var i = 0; i < checkedCheckboxes.length; i++) {
+        var key = checkedCheckboxes[i].dataset.comboKey;
+        selectedCombinations[key] = true;
+        console.log('  DOM says checked:', key);
+      }
+
+      // Now filter based on actual DOM state
+      for (var i = 0; i < previewedCombinations.length; i++) {
+        var combo = previewedCombinations[i];
+        var comboKey = combo.componentSetId + ':' + JSON.stringify(combo.properties);
+        var isSelected = selectedCombinations[comboKey] === true;
+
+        if (isSelected) {
+          console.log('✓ Will render:', JSON.stringify(combo.properties));
+          combinationsToGenerate.push(combo);
+        } else {
+          console.log('✗ Skipping:', JSON.stringify(combo.properties));
+        }
+      }
+
+      console.log('=== FINAL: Sending', combinationsToGenerate.length, 'combinations to backend ===');
+
+      parent.postMessage({
+        pluginMessage: {
+          type: 'generate-sticker-sheet',
+          sortBy: sortBy,
+          groupBy: groupBy,
+          includeLightDark: includeLightDark,
+          selectedCombinations: combinationsToGenerate
+        }
+      }, '*');
+    });
+
+
+
+    // Toggle all button functionality
+    document.getElementById('toggleAllBtn').addEventListener('click', function() {
+      var checkboxes = document.querySelectorAll('#previewList input[type="checkbox"]');
+      
+      // Determine if we should select all or deselect all
+      // If any checkbox is unchecked, we'll select all. Otherwise, deselect all.
+      var anyUnchecked = false;
+      for (var i = 0; i < checkboxes.length; i++) {
+        if (!checkboxes[i].checked) {
+          anyUnchecked = true;
+          break;
+        }
+      }
+      
+      var newState = anyUnchecked;
+      
+      // Update all checkboxes
+      for (var i = 0; i < checkboxes.length; i++) {
+        checkboxes[i].checked = newState;
+        var comboKey = checkboxes[i].dataset.comboKey;
+        selectedCombinations[comboKey] = newState;
+      }
+      
+      // Update button text
+      this.textContent = newState ? 'Deselect All' : 'Select All';
+      
+      // Update generate button state
+      updateGenerateButton();
+    });
+  </script>
+</body>
+</html>

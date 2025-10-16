@@ -1,0 +1,528 @@
+// Component Organizer Plugin
+// Generates organized sticker sheets from component sets with all variant combinations
+
+figma.showUI(__html__, { width: 500, height: 700, themeColors: true });
+
+var componentSetData = [];
+
+// Listen for selection changes
+figma.on('selectionchange', function() {
+  init();
+});
+
+// Initialize plugin - analyze selected component sets
+function init() {
+  var selection = figma.currentPage.selection;
+
+  if (selection.length === 0) {
+    figma.ui.postMessage({
+      type: 'error',
+      message: 'Please select at least one component set'
+    });
+    return;
+  }
+
+  // Debug: Log what was selected
+  var selectionTypes = [];
+  for (var i = 0; i < selection.length; i++) {
+    selectionTypes.push(selection[i].type);
+  }
+
+  // Filter to only component sets
+  var componentSets = selection.filter(function(node) {
+    return node.type === 'COMPONENT_SET';
+  });
+
+  if (componentSets.length === 0) {
+    var errorMsg = 'Please select component sets (not individual components or instances). ';
+    errorMsg += 'You selected: ' + selectionTypes.join(', ');
+    figma.ui.postMessage({
+      type: 'error',
+      message: errorMsg
+    });
+    return;
+  }
+
+  // Analyze each component set
+  componentSetData = componentSets.map(function(compSet) {
+    // Load saved plugin data
+    var tagsJson = compSet.getPluginData('tags') || '[]';
+    var tags = [];
+    try {
+      tags = JSON.parse(tagsJson);
+    } catch (e) {
+      tags = [];
+    }
+    var order = parseInt(compSet.getPluginData('order') || '0');
+    var includeNested = compSet.getPluginData('includeNested') === 'true';
+
+    // Analyze variant structure
+    var variantInfo = analyzeComponentSet(compSet);
+
+    return {
+      id: compSet.id,
+      name: compSet.name,
+      tags: tags,
+      order: order,
+      includeNested: includeNested,
+      variantCount: variantInfo.variantCount,
+      properties: variantInfo.properties,
+      variantNames: variantInfo.variantNames
+    };
+  });
+
+  figma.ui.postMessage({
+    type: 'init',
+    componentSets: componentSetData
+  });
+}
+
+// Analyze a component set to extract variant structure
+function analyzeComponentSet(compSet) {
+  var properties = {};
+  var variantCount = 0;
+  var variantNames = [];
+
+  // Get all variants (children of component set)
+  var variants = compSet.children;
+  variantCount = variants.length;
+
+  console.log('Analyzing component set:', compSet.name);
+  console.log('Children count:', variants.length);
+
+  // Try to extract properties from the component set's variantGroupProperties (older API)
+  if (compSet.variantGroupProperties) {
+    console.log('Using variantGroupProperties');
+    var variantProps = compSet.variantGroupProperties;
+    for (var propName in variantProps) {
+      properties[propName] = {
+        type: 'VARIANT',
+        values: variantProps[propName].values || []
+      };
+    }
+  }
+  // Or use componentPropertyDefinitions (newer API)
+  else if (compSet.componentPropertyDefinitions) {
+    console.log('Using componentPropertyDefinitions');
+    var propDefs = compSet.componentPropertyDefinitions;
+    for (var key in propDefs) {
+      var prop = propDefs[key];
+      console.log('Property:', key, prop);
+
+      // Extract the actual property name from the key (format is usually "propertyName#id")
+      var propName = key.split('#')[0];
+
+      if (prop.type === 'VARIANT') {
+        properties[propName] = {
+          type: 'VARIANT',
+          values: prop.variantOptions || []
+        };
+      } else if (prop.type === 'BOOLEAN') {
+        properties[propName] = {
+          type: 'BOOLEAN',
+          values: [true, false]
+        };
+      } else if (prop.type === 'TEXT') {
+        // Skip text properties for now as they don't affect variants
+      } else if (prop.type === 'INSTANCE_SWAP') {
+        // Skip instance swap for now
+      }
+    }
+  }
+
+  console.log('Extracted properties:', properties);
+
+  // Get variant names for reference
+  for (var i = 0; i < variants.length; i++) {
+    variantNames.push(variants[i].name);
+  }
+
+  return {
+    variantCount: variantCount,
+    properties: properties,
+    variantNames: variantNames
+  };
+}
+
+// Generate all combinations of variant properties
+function generateVariantCombinations(properties) {
+  var propNames = [];
+  var propValues = [];
+
+  for (var name in properties) {
+    propNames.push(name);
+    propValues.push(properties[name].values);
+  }
+
+  if (propNames.length === 0) {
+    return [];
+  }
+
+  var combinations = [];
+
+  function recurse(index, current) {
+    if (index === propNames.length) {
+      var combination = {};
+      for (var i = 0; i < propNames.length; i++) {
+        combination[propNames[i]] = current[i];
+      }
+      combinations.push(combination);
+      return;
+    }
+
+    var values = propValues[index];
+    for (var j = 0; j < values.length; j++) {
+      current[index] = values[j];
+      recurse(index + 1, current);
+    }
+  }
+
+  recurse(0, []);
+  return combinations;
+}
+
+// Find variant component by properties
+function findVariantByProperties(compSet, properties) {
+  var variants = compSet.children;
+
+  console.log('Finding variant for properties:', properties);
+
+  // Build expected variant name (format: "Property1=Value1, Property2=Value2")
+  var nameParts = [];
+  for (var propName in properties) {
+    nameParts.push(propName + '=' + properties[propName]);
+  }
+  var expectedName = nameParts.join(', ');
+
+  console.log('Looking for variant with name:', expectedName);
+
+  // First try exact name match
+  for (var i = 0; i < variants.length; i++) {
+    var variant = variants[i];
+    console.log('Checking variant:', variant.name);
+    if (variant.name === expectedName) {
+      console.log('Found exact match!');
+      return variant;
+    }
+  }
+
+  // If not found, try matching by individual properties
+  for (var i = 0; i < variants.length; i++) {
+    var variant = variants[i];
+    var matches = true;
+
+    // Check if variant name contains all expected property=value pairs
+    for (var propName in properties) {
+      var expectedPair = propName + '=' + properties[propName];
+      if (variant.name.indexOf(expectedPair) === -1) {
+        matches = false;
+        break;
+      }
+    }
+
+    if (matches) {
+      console.log('Found match by property pairs:', variant.name);
+      return variant;
+    }
+  }
+
+  console.log('No variant found');
+  return null;
+}
+
+// Message handler
+figma.ui.onmessage = function(msg) {
+  if (msg.type === 'init-plugin') {
+    init();
+  }
+
+  if (msg.type === 'update-component-set') {
+    var index = -1;
+    for (var i = 0; i < componentSetData.length; i++) {
+      if (componentSetData[i].id === msg.data.id) {
+        index = i;
+        break;
+      }
+    }
+
+    if (index !== -1) {
+      componentSetData[index].tags = msg.data.tags;
+      componentSetData[index].order = msg.data.order;
+      componentSetData[index].includeNested = msg.data.includeNested;
+
+      // Store data in plugin data
+      var node = figma.getNodeById(msg.data.id);
+      if (node && node.type === 'COMPONENT_SET') {
+        node.setPluginData('tags', JSON.stringify(msg.data.tags || []));
+        node.setPluginData('order', String(msg.data.order || 0));
+        node.setPluginData('includeNested', String(msg.data.includeNested || false));
+      }
+    }
+  }
+
+  if (msg.type === 'generate-sticker-sheet') {
+    try {
+      generateStickerSheet(msg.sortBy, msg.groupBy, msg.includeLightDark);
+    } catch (error) {
+      figma.notify('Error: ' + error.message);
+      console.error(error);
+    }
+  }
+
+  if (msg.type === 'cancel') {
+    figma.closePlugin();
+  }
+};
+
+function generateStickerSheet(sortBy, groupBy, includeLightDark) {
+  sortBy = sortBy || 'name';
+  groupBy = groupBy || 'component';
+  includeLightDark = includeLightDark !== false;
+
+  console.log('generateStickerSheet called', {sortBy: sortBy, groupBy: groupBy, includeLightDark: includeLightDark});
+  console.log('componentSetData length:', componentSetData.length);
+
+  if (componentSetData.length === 0) {
+    figma.notify('No component sets to generate sticker sheet');
+    return;
+  }
+
+  // Calculate position - place next to the first selected component set
+  var firstCompSet = figma.getNodeById(componentSetData[0].id);
+  var startX = 0;
+  var startY = 0;
+
+  if (firstCompSet) {
+    startX = firstCompSet.x + firstCompSet.width + 200;
+    startY = firstCompSet.y;
+  }
+
+  console.log('Start position:', {x: startX, y: startY});
+
+  // Load fonts first
+  figma.loadFontAsync({ family: "Inter", style: "Bold" })
+    .then(function() {
+      return figma.loadFontAsync({ family: "Inter", style: "Regular" });
+    })
+    .then(function() {
+      // Sort component sets
+      var sortedData = componentSetData.slice();
+      sortedData.sort(function(a, b) {
+        if (sortBy === 'name') {
+          return a.name.localeCompare(b.name);
+        }
+        if (sortBy === 'order') {
+          return a.order - b.order;
+        }
+        return 0;
+      });
+
+      // Group component sets
+      var groups = {};
+      if (groupBy === 'none') {
+        groups['All Components'] = sortedData;
+      } else {
+        // Group by component set (default)
+        for (var i = 0; i < sortedData.length; i++) {
+          var item = sortedData[i];
+          groups[item.name] = [item];
+        }
+      }
+
+      // Layout settings
+      var spacing = 60;
+      var groupSpacing = 120;
+      var sectionSpacing = 200;
+      var yOffset = startY;
+
+      // Create mode sections if enabled
+      var modeSections = includeLightDark ? ['Light Mode', 'Dark Mode'] : ['Components'];
+
+      for (var modeIndex = 0; modeIndex < modeSections.length; modeIndex++) {
+        var modeName = modeSections[modeIndex];
+
+        // Create mode section background
+        var modeFrame = figma.createFrame();
+        modeFrame.name = modeName;
+        modeFrame.x = startX;
+        modeFrame.y = yOffset;
+
+        // Set background color based on mode
+        if (modeName === 'Light Mode') {
+          modeFrame.fills = [{type: 'SOLID', color: {r: 0.98, g: 0.98, b: 0.98}}];
+        } else if (modeName === 'Dark Mode') {
+          modeFrame.fills = [{type: 'SOLID', color: {r: 0.12, g: 0.12, b: 0.12}}];
+        } else {
+          modeFrame.fills = [{type: 'SOLID', color: {r: 1, g: 1, b: 1}}];
+        }
+
+        modeFrame.paddingTop = 40;
+        modeFrame.paddingBottom = 40;
+        modeFrame.paddingLeft = 40;
+        modeFrame.paddingRight = 40;
+        modeFrame.layoutMode = 'VERTICAL';
+        modeFrame.itemSpacing = groupSpacing;
+        modeFrame.cornerRadius = 8;
+
+        // Create mode header
+        var modeHeader = figma.createText();
+        modeHeader.characters = modeName;
+        modeHeader.fontSize = 32;
+        modeHeader.fontName = { family: "Inter", style: "Bold" };
+
+        if (modeName === 'Dark Mode') {
+          modeHeader.fills = [{type: 'SOLID', color: {r: 1, g: 1, b: 1}}];
+        } else {
+          modeHeader.fills = [{type: 'SOLID', color: {r: 0, g: 0, b: 0}}];
+        }
+
+        modeFrame.appendChild(modeHeader);
+
+        var contentStartY = yOffset + 40 + modeHeader.height + groupSpacing;
+
+        // Process each group
+        var groupNames = Object.keys(groups);
+
+        for (var g = 0; g < groupNames.length; g++) {
+          var groupName = groupNames[g];
+          var groupItems = groups[groupName];
+
+        // Process each component set in this group
+        for (var c = 0; c < groupItems.length; c++) {
+          var itemData = groupItems[c];
+          var compSet = figma.getNodeById(itemData.id);
+
+          if (!compSet || compSet.type !== 'COMPONENT_SET') {
+            continue;
+          }
+
+          // Create component set title
+          var title = figma.createText();
+          var titleText = itemData.name;
+          if (itemData.tags.length > 0) {
+            titleText += ' • ' + itemData.tags.join(', ');
+          }
+          title.characters = titleText;
+          title.fontSize = 18;
+          title.fontName = { family: "Inter", style: "Bold" };
+          title.x = startX;
+          title.y = yOffset;
+
+          yOffset += title.height + 30;
+
+          // Generate all variant combinations
+          var combinations = generateVariantCombinations(itemData.properties);
+
+          console.log('Component:', itemData.name);
+          console.log('Properties:', itemData.properties);
+          console.log('Combinations generated:', combinations.length);
+
+          // If no combinations (no variant properties), just use the children
+          if (combinations.length === 0) {
+            combinations = [];
+            for (var ch = 0; ch < compSet.children.length; ch++) {
+              combinations.push({});
+            }
+            console.log('No properties, using children count:', combinations.length);
+          }
+
+          // Layout variants in grid
+          var xOffset = startX;
+          var maxHeight = 0;
+          var rowWidth = 1400;
+
+          console.log('Starting to create instances for', combinations.length, 'combinations');
+
+          for (var v = 0; v < combinations.length; v++) {
+            var combo = combinations[v];
+
+            // Find the variant component
+            var variantComp = null;
+            if (Object.keys(combo).length > 0) {
+              variantComp = findVariantByProperties(compSet, combo);
+              console.log('Found variant for combo:', combo, variantComp ? variantComp.name : 'NOT FOUND');
+            } else {
+              // No properties, just get the child by index
+              variantComp = compSet.children[v];
+              console.log('Using child', v, ':', variantComp ? variantComp.name : 'NOT FOUND');
+            }
+
+            if (!variantComp) {
+              console.log('Skipping - no variant component found');
+              continue;
+            }
+
+            // Create instance
+            console.log('Creating instance of:', variantComp.name);
+            var instance = variantComp.createInstance();
+            console.log('Instance created, dimensions:', instance.width, 'x', instance.height);
+
+            // Create label for this variant
+            var label = figma.createText();
+            var labelParts = [];
+            for (var propName in combo) {
+              labelParts.push(propName + ': ' + combo[propName]);
+            }
+            if (labelParts.length === 0) {
+              labelParts.push(variantComp.name);
+            }
+            label.characters = labelParts.join(' • ');
+            label.fontSize = 12;
+            label.fontName = { family: "Inter", style: "Regular" };
+
+            // Create frame to hold instance + label
+            var frame = figma.createFrame();
+            frame.name = variantComp.name;
+            frame.appendChild(instance);
+            frame.appendChild(label);
+
+            instance.x = 0;
+            instance.y = 0;
+            label.x = 0;
+            label.y = instance.height + 15;
+
+            frame.resize(
+              Math.max(instance.width, label.width + 10),
+              instance.height + label.height + 20
+            );
+            frame.clipsContent = false;
+            frame.fills = [];
+
+            // Position in grid
+            if (xOffset + frame.width > (startX + rowWidth) && xOffset > startX) {
+              xOffset = startX;
+              yOffset += maxHeight + spacing;
+              maxHeight = 0;
+            }
+
+            frame.x = xOffset;
+            frame.y = yOffset;
+
+            xOffset += frame.width + spacing;
+            maxHeight = Math.max(maxHeight, frame.height);
+          }
+
+          yOffset += maxHeight + groupSpacing;
+        }
+
+        yOffset += groupSpacing;
+      }
+
+      // Zoom to show the generated sticker sheet
+      var allNodes = figma.currentPage.findAll(function(node) {
+        return node.x >= startX;
+      });
+
+      if (allNodes.length > 0) {
+        figma.viewport.scrollAndZoomIntoView(allNodes);
+      }
+
+      figma.notify('Sticker sheet generated with ' + componentSetData.length + ' component sets!');
+    })
+    .catch(function(err) {
+      figma.notify('Error: ' + err.message);
+    });
+}
+
+// Initialize on load
+init();
