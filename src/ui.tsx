@@ -331,12 +331,13 @@ function Plugin() {
                   {propertyOrder.map((prop, index) => {
                     const isActive = sortColumn === prop
                     const isAscending = isActive && sortDirection === 'asc'
+                    const isFirstColumn = index === 0
 
                     return (
                       <th
                         key={prop}
                         style={{
-                          padding: '8px',
+                          padding: isFirstColumn ? '8px 8px 8px 0' : '8px',
                           textAlign: 'left',
                           fontWeight: 600,
                           cursor: 'pointer',
@@ -396,10 +397,10 @@ function Plugin() {
                           padding: '0 8px',
                           marginBottom: '8px'
                         }}>
-                          {propertyOrder.map((propName, index) => (
+                          {propertyOrder.map((propName, colIndex) => (
                             <div key={propName} style={{ 
                               flex: propName === 'Type' ? '0 0 30%' : '1',
-                              padding: '0 8px'
+                              padding: colIndex === 0 ? '0 8px 0 0' : '0 8px'
                             }}>
                               <Text>
                                 {combo.properties[propName] !== undefined

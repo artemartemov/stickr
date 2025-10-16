@@ -1,7 +1,7 @@
 {
-  "name": "figma-component-organizer",
+  "name": "stickr",
   "version": "1.0.0",
-  "description": "",
+  "description": "A Figma plugin to organize component variants and generate sticker sheets",
   "main": "code.js",
   "scripts": {
     "build": "build-figma-plugin --typecheck --minify",
@@ -11,14 +11,14 @@
     "editorType": [
       "figma"
     ],
-    "id": "component-organizer",
-    "name": "Component Organizer",
+    "id": "stickr",
+    "name": "Stickr",
     "main": "src/main.ts",
     "ui": "src/ui.tsx"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": ["figma", "plugin", "components", "variants", "sticker-sheet", "design-system"],
+  "author": "Artem Artemov",
+  "license": "MIT",
   "type": "commonjs",
   "devDependencies": {
     "@create-figma-plugin/build": "^4.0.3",
