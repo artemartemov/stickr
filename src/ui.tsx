@@ -12,9 +12,8 @@ import {
   IconComponentProperty16,
   IconChevronDown16,
   Muted,
-  Textbox,
-  SegmentedControl,
-  SegmentedControlOption
+
+  LoadingIndicator
 } from '@create-figma-plugin/ui'
 import { h, Fragment } from 'preact'
 import { useState, useEffect } from 'preact/hooks'
@@ -36,6 +35,12 @@ function Plugin() {
   const [anovaInput, setAnovaInput] = useState<string>('')
   const [anovaSpec, setAnovaSpec] = useState<AnovaSpec | null>(null)
   const [anovaError, setAnovaError] = useState<string>('')
+  const [waitingForAutoSelect, setWaitingForAutoSelect] = useState(false)
+
+  // Preview state
+  const [previews, setPreviews] = useState<{ [variantName: string]: string }>({})
+  const [previewsLoading, setPreviewsLoading] = useState(false)
+  const [previewsError, setPreviewsError] = useState<string | null>(null)
 
   // Shared state
   const [previewCombinations, setPreviewCombinations] = useState<any[]>([])
@@ -47,6 +52,7 @@ function Plugin() {
 
   // Listen for initial data from backend - set up handler immediately
   on('INIT_DATA', (data: any[]) => {
+    console.log('INIT_DATA received:', data.length, 'component sets')
     setComponentSets(data)
 
     // Auto-expand VARIANT and BOOLEAN properties
@@ -62,9 +68,50 @@ function Plugin() {
     setExpandedProperties(expanded)
   })
 
-  // Generate preview when properties change
+  // Listen for preview generation responses
+  on('PREVIEWS_READY', (data: { [variantName: string]: string }) => {
+    console.log('Received previews:', Object.keys(data).length, 'images')
+    setPreviews(data)
+    setPreviewsLoading(false)
+    setPreviewsError(null)
+  })
+
+  on('PREVIEWS_ERROR', (data: { error: string }) => {
+    console.log('Preview error:', data.error)
+    setPreviewsError(data.error)
+    setPreviewsLoading(false)
+  })
+
+  // Auto-continue import after component is selected
   useEffect(() => {
+    console.log('useEffect check:', {
+      waitingForAutoSelect,
+      componentSetsLength: componentSets.length,
+      hasAnovaSpec: !!anovaSpec,
+      previewCombinationsLength: previewCombinations.length
+    })
+
+    if (waitingForAutoSelect && componentSets.length > 0 && anovaSpec && previewCombinations.length > 0) {
+      console.log('Auto-select complete, requesting previews...')
+      setWaitingForAutoSelect(false)
+      // Request previews now that component is selected
+      // Add small delay to ensure selection is fully registered in Figma
+      setTimeout(() => {
+        console.log('Emitting GENERATE_PREVIEWS with', previewCombinations.length, 'combinations')
+        setPreviewsLoading(true)
+        setPreviewsError(null)
+        emit('GENERATE_PREVIEWS', { combinations: previewCombinations })
+      }, 100)
+    }
+  }, [componentSets, waitingForAutoSelect, anovaSpec, previewCombinations])
+
+  // Generate preview when properties change (only for Figma Direct mode)
+  useEffect(() => {
+    // Skip if in Anova mode - Anova handles its own combinations
+    if (dataSource === 'anova') return
     if (componentSets.length === 0) return
+
+    console.log('Regenerating Figma Direct combinations')
 
     const combinations: any[] = []
     const selected: { [key: string]: boolean } = {}
@@ -91,7 +138,7 @@ function Plugin() {
 
     setPreviewCombinations(combinations)
     setSelectedCombinations(selected)
-  }, [componentSets, expandedProperties])
+  }, [componentSets, expandedProperties, dataSource])
 
   function generateCombinations(properties: any, propsToExpand: string[]): any[] {
     if (propsToExpand.length === 0) return [{}]
@@ -183,41 +230,12 @@ function Plugin() {
 
   function handleModeChange(newMode: DataSource) {
     setDataSource(newMode)
-    // Clear data from the other mode
-    if (newMode === 'figma-direct') {
-      setAnovaSpec(null)
-      setAnovaInput('')
-      setAnovaError('')
-    } else {
-      // Keep component sets but clear expanded properties
-      setExpandedProperties({})
-    }
-    // Clear preview and selections
-    setPreviewCombinations([])
-    setSelectedCombinations({})
+    // Don't clear any data - just switch the view
+    // The data will remain available when switching back
   }
 
-  function handleAnovaImport() {
+  function generateAnovaCombinations(spec: AnovaSpec, requestPreviews: boolean = true) {
     try {
-      setAnovaError('')
-
-      // Try parsing as YAML first, then JSON
-      let parsed: any
-      try {
-        parsed = yaml.load(anovaInput)
-      } catch (yamlError) {
-        // If YAML fails, try JSON
-        parsed = JSON.parse(anovaInput)
-      }
-
-      // Validate structure
-      if (!parsed.title || !parsed.props || !parsed.variants) {
-        throw new Error('Invalid Anova format: missing required fields (title, props, variants)')
-      }
-
-      const spec = parsed as AnovaSpec
-      setAnovaSpec(spec)
-
       // Get base valid variants (filters out invalid ones)
       const validVariants = filterValidVariants(spec)
 
@@ -261,7 +279,6 @@ function Plugin() {
 
         for (const boolCombo of booleanCombos) {
           // Check if this boolean combination is valid for this variant
-          // by verifying that elements controlled by these booleans exist
           let isValidCombo = true
 
           if (variantSpec) {
@@ -275,29 +292,23 @@ function Plugin() {
               // If boolean is true, check if the controlled elements exist in this variant
               if (boolValue === true && controlledElements.length > 0) {
                 for (const [elemName] of controlledElements) {
-                  // Check 1: Has the variant set propReferences.visible to null? (explicitly disabled)
                   const variantElem = variantSpec.elements?.[elemName]
                   if (variantElem?.propReferences?.visible === null) {
                     isValidCombo = false
                     break
                   }
 
-                  // Check 2: Get the element's parent and check if element is in parent's children list
                   const defaultElem = spec.default.elements?.[elemName]
                   const parentName = defaultElem?.parent
 
                   if (parentName) {
-                    // Check if the parent element in this variant has this element in its children list
                     const variantParent = variantSpec.elements?.[parentName]
-
                     if (variantParent?.children) {
-                      // Variant explicitly defines children for this parent - check if element is included
                       if (!variantParent.children.includes(elemName)) {
                         isValidCombo = false
                         break
                       }
                     }
-                    // If variant doesn't override the parent's children, element exists from default
                   }
                 }
               }
@@ -309,13 +320,11 @@ function Plugin() {
 
             // Check if this combination matches any invalid configuration
             const matchesInvalidConfig = spec.invalidConfigurations.some(invalidConfig => {
-              // Check if all properties in invalidConfig match this combination
               return Object.keys(invalidConfig).every(key => {
                 return fullConfig[key] === invalidConfig[key]
               })
             })
 
-            // Skip this combination if it matches an invalid configuration
             if (matchesInvalidConfig) {
               continue
             }
@@ -341,6 +350,56 @@ function Plugin() {
 
       setPreviewCombinations(combinations)
       setSelectedCombinations(selected)
+
+      // Request preview generation for Anova variants (only if requested)
+      if (requestPreviews) {
+        setPreviewsLoading(true)
+        setPreviewsError(null)
+        emit('GENERATE_PREVIEWS', { combinations })
+      }
+    } catch (error: any) {
+      setAnovaError(error.message || 'Failed to generate combinations')
+    }
+  }
+
+  function handleAnovaImport() {
+    try {
+      setAnovaError('')
+
+      // Try parsing as YAML first, then JSON
+      let parsed: any
+      try {
+        parsed = yaml.load(anovaInput)
+      } catch (yamlError) {
+        // If YAML fails, try JSON
+        try {
+          parsed = JSON.parse(anovaInput)
+        } catch (jsonError) {
+          throw new Error('Invalid YAML or JSON format')
+        }
+      }
+
+      // Validate structure
+      if (!parsed.title || !parsed.props || !parsed.variants) {
+        throw new Error('Invalid Anova format: missing required fields (title, props, variants)')
+      }
+
+      const spec = parsed as AnovaSpec
+      setAnovaSpec(spec)
+
+      // Generate combinations immediately (without previews if no component selected)
+      const shouldRequestPreviews = componentSets.length > 0
+      generateAnovaCombinations(spec, shouldRequestPreviews)
+
+      // Auto-select matching component set if none is selected
+      if (componentSets.length === 0) {
+        // Request component selection and wait for update
+        emit('SELECT_COMPONENT_BY_NAME', spec.title)
+        setWaitingForAutoSelect(true)
+        setPreviewsLoading(false) // Don't show loading yet
+        setAnovaError('') // Clear error, will show status in preview section
+        return
+      }
 
     } catch (error: any) {
       setAnovaError(error.message || 'Failed to parse Anova data')
@@ -391,58 +450,97 @@ function Plugin() {
     : previewCombinations
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {/* Mode Toggle */}
-      <div style={{ padding: '12px', borderBottom: '1px solid var(--figma-color-border)', flexShrink: 0 }}>
-        <div style={{ marginBottom: '8px' }}>
-          <Text style={{ fontSize: '11px', fontWeight: 600 }}>Data Source</Text>
+    <>
+      <style>
+        {`
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+        `}
+      </style>
+      <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+        {/* Mode Toggle */}
+      <div style={{ display: 'flex', borderBottom: '1px solid var(--figma-color-border)', flexShrink: 0 }}>
+        <div
+          onClick={() => handleModeChange('figma-direct')}
+          style={{
+            flex: 1,
+            padding: '12px',
+            textAlign: 'center',
+            cursor: 'pointer',
+            borderBottom: dataSource === 'figma-direct' ? '2px solid var(--figma-color-text-brand)' : '2px solid transparent',
+            color: dataSource === 'figma-direct' ? 'var(--figma-color-text)' : 'var(--figma-color-text-secondary)',
+            fontWeight: dataSource === 'figma-direct' ? 600 : 400,
+            fontSize: '11px',
+            transition: 'all 0.2s ease'
+          }}
+        >
+          FIGMA CANVAS
         </div>
-        <SegmentedControl
-          value={dataSource}
-          onValueChange={(value) => handleModeChange(value as DataSource)}
-          options={[
-            { value: 'figma-direct', children: <Text>Figma Direct</Text> },
-            { value: 'anova', children: <Text>Anova Data</Text> }
-          ]}
-        />
+        <div
+          onClick={() => handleModeChange('anova')}
+          style={{
+            flex: 1,
+            padding: '12px',
+            textAlign: 'center',
+            cursor: 'pointer',
+            borderBottom: dataSource === 'anova' ? '2px solid var(--figma-color-text-brand)' : '2px solid transparent',
+            color: dataSource === 'anova' ? 'var(--figma-color-text)' : 'var(--figma-color-text-secondary)',
+            fontWeight: dataSource === 'anova' ? 600 : 400,
+            fontSize: '11px',
+            transition: 'all 0.2s ease'
+          }}
+        >
+          COMPONENT DATA
+        </div>
       </div>
 
       {/* Anova Input Section */}
       {dataSource === 'anova' && (
-        <div style={{ padding: '12px', borderBottom: '1px solid var(--figma-color-border)', flexShrink: 0 }}>
-          <div style={{ marginBottom: '8px' }}>
-            <Text style={{ fontSize: '11px', fontWeight: 600 }}>Paste Anova YAML/JSON</Text>
-          </div>
-          <textarea
-            value={anovaInput}
-            onChange={(e: any) => setAnovaInput(e.target.value)}
-            placeholder="Paste Anova component spec here..."
-            style={{
-              width: '100%',
-              minHeight: '120px',
-              padding: '8px',
-              fontFamily: 'monospace',
-              fontSize: '10px',
-              border: '1px solid var(--figma-color-border)',
-              borderRadius: '4px',
-              background: 'var(--figma-color-bg)',
-              color: 'var(--figma-color-text)',
-              resize: 'vertical'
-            }}
-          />
-          {anovaError && (
-            <div style={{ marginTop: '8px', color: 'var(--figma-color-text-danger)', fontSize: '11px' }}>
-              {anovaError}
-            </div>
-          )}
-          <div style={{ marginTop: '8px' }}>
-            <Button fullWidth onClick={handleAnovaImport} disabled={!anovaInput.trim()}>
-              Import Anova Data
+        <div style={{ display: 'flex', flexDirection: 'column', flexShrink: 0, borderBottom: '1px solid var(--figma-color-border)' }}>
+          <div style={{ padding: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {anovaSpec && (
+              <>
+                <div style={{
+                  fontFamily: 'var(--text-body-large-strong-font-family)',
+                  fontSize: 'var(--text-body-large-strong-font-size)',
+                  fontWeight: 600,
+                  letterSpacing: 'var(--text-body-large-strong-letter-spacing)',
+                  lineHeight: 'var(--text-body-large-strong-line-height)',
+                  color: 'var(--figma-color-text)'
+                }}>
+                  {anovaSpec.title}
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--figma-color-text-tertiary)' }}>·</div>
+              </>
+            )}
+            <textarea
+              value={anovaInput}
+              onChange={(e: any) => setAnovaInput(e.target.value)}
+              placeholder="Paste YAML/JSON..."
+              style={{
+                flex: 1,
+                height: '30px',
+                padding: '6px 8px',
+                fontFamily: 'var(--font-stack)',
+                fontSize: '11px',
+                border: '1px solid var(--figma-color-border)',
+                borderRadius: '2px',
+                background: 'var(--figma-color-bg)',
+                color: 'var(--figma-color-text)',
+                resize: 'none',
+                lineHeight: '16px',
+                overflow: 'hidden'
+              }}
+            />
+            <Button onClick={handleAnovaImport} disabled={!anovaInput.trim()}>
+              Import
             </Button>
           </div>
-          {anovaSpec && (
-            <div style={{ marginTop: '8px', fontSize: '11px', color: 'var(--figma-color-text-secondary)' }}>
-              ✓ Loaded: {anovaSpec.title} ({previewCombinations.length} valid variants)
+          {anovaError && (
+            <div style={{ padding: '0 12px 12px 12px', color: 'var(--figma-color-text-danger)', fontSize: '11px' }}>
+              {anovaError}
             </div>
           )}
         </div>
@@ -554,11 +652,11 @@ function Plugin() {
       {/* Preview Section - Takes remaining space */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
         <>
-            <div 
-              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0, padding: '0 12px 8px 12px', minHeight: '40px', position: 'sticky', top: 0, background: 'var(--figma-color-bg)', zIndex: 1 }}
+            <div
+              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0, padding: '12px 12px 8px 12px', minHeight: '40px', position: 'sticky', top: 0, background: 'var(--figma-color-bg)', zIndex: 1 }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div style={{ 
+                <div style={{
                   fontFamily: 'var(--text-body-large-strong-font-family)',
                   fontSize: 'var(--text-body-large-strong-font-size)',
                   fontWeight: 600,
@@ -572,6 +670,41 @@ function Plugin() {
                 <div style={{ fontSize: '11px', color: 'var(--figma-color-text)' }}>
                   {Object.values(selectedCombinations).filter(v => v).length} / {previewCombinations.length} selected
                 </div>
+                {(waitingForAutoSelect || previewsLoading || previewsError) && dataSource === 'anova' && (
+                  <>
+                    <div style={{ fontSize: '11px', color: 'var(--figma-color-text-tertiary)' }}>·</div>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '4px 8px',
+                      borderRadius: '3px',
+                      background: previewsError
+                        ? 'var(--figma-color-bg-danger-tertiary)'
+                        : 'var(--figma-color-bg-secondary)'
+                    }}>
+                      {!previewsError && (
+                        <div style={{
+                          width: '12px',
+                          height: '12px',
+                          border: '2px solid var(--figma-color-text-brand)',
+                          borderTopColor: 'transparent',
+                          borderRadius: '50%',
+                          animation: 'spin 0.8s linear infinite'
+                        }} />
+                      )}
+                      <div style={{
+                        fontSize: '11px',
+                        fontWeight: 500,
+                        color: previewsError
+                          ? 'var(--figma-color-text-danger)'
+                          : 'var(--figma-color-text)'
+                      }}>
+                        {previewsError ? 'Preview error' : waitingForAutoSelect ? 'Searching for component' : 'Generating previews'}
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
               <Button secondary onClick={handleSelectAll}>
                 {Object.values(selectedCombinations).every(v => v) ? 'Deselect All' : 'Select All'}
@@ -584,12 +717,23 @@ function Plugin() {
                   <Muted>No combinations to show</Muted>
                 </div>
               ) : dataSource === 'anova' ? (
-                /* Anova Mode - Simple list view */
+                /* Anova Mode - List view with thumbnails */
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {sortedCombinations.map((combo, index) => {
                     const key = getCombinationKey(combo)
                     const isSelected = selectedCombinations[key] || false
                     const isHovered = hoveredRow === key
+                    const previewImage = previews[combo.variantName]
+
+                    // Debug logging for first few items
+                    if (index < 3) {
+                      console.log(`Combo ${index}:`, {
+                        variantName: combo.variantName,
+                        hasPreview: !!previewImage,
+                        previewKeys: Object.keys(previews).slice(0, 5),
+                        previewsLoading
+                      })
+                    }
 
                     let bgColor = 'transparent'
                     if (isSelected) {
@@ -606,24 +750,137 @@ function Plugin() {
                           background: bgColor,
                           borderRadius: '6px',
                           padding: '12px',
-                          border: '1px solid var(--figma-color-border)'
+                          border: '1px solid var(--figma-color-border)',
+                          display: 'flex',
+                          gap: '12px',
+                          alignItems: 'flex-start'
                         }}
                         onMouseEnter={() => setHoveredRow(key)}
                         onMouseLeave={() => setHoveredRow(null)}
                         onClick={() => handleCombinationToggle(key)}
                       >
-                        <div style={{ fontWeight: 600, marginBottom: '4px', fontSize: '12px' }}>
-                          {combo.variantName}
+                        {/* Thumbnail */}
+                        <div style={{
+                          width: '96px',
+                          height: '96px',
+                          flexShrink: 0,
+                          borderRadius: '6px',
+                          overflow: 'hidden',
+                          background: 'var(--figma-color-bg-tertiary)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          border: '1px solid var(--figma-color-border)'
+                        }}>
+                          {previewsLoading ? (
+                            <LoadingIndicator />
+                          ) : previewImage ? (
+                            <img
+                              src={`data:image/png;base64,${previewImage}`}
+                              alt={combo.variantName}
+                              style={{
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'contain'
+                              }}
+                            />
+                          ) : (
+                            <Muted style={{ fontSize: '24px' }}>?</Muted>
+                          )}
                         </div>
-                        {combo.properties && Object.keys(combo.properties).length > 0 && (
-                          <div style={{ fontSize: '11px', color: 'var(--figma-color-text-secondary)' }}>
-                            {Object.entries(combo.properties).map(([key, value]) => (
-                              <span key={key} style={{ marginRight: '12px' }}>
-                                {key}: <strong>{formatPropertyValue(value)}</strong>
-                              </span>
-                            ))}
-                          </div>
-                        )}
+
+                        {/* Properties */}
+                        <div style={{ flex: 1, minWidth: 0, display: 'flex', gap: '12px' }}>
+                          {combo.properties && Object.keys(combo.properties).length > 0 && (() => {
+                            // Separate boolean and variant properties
+                            const boolProps: [string, any][] = []
+                            const variantProps: [string, any][] = []
+
+                            Object.entries(combo.properties).forEach(([key, value]) => {
+                              const strValue = String(value).toLowerCase()
+                              const isBool = strValue === 'true' || strValue === 'false'
+
+                              if (isBool) {
+                                boolProps.push([key, value])
+                              } else {
+                                variantProps.push([key, value])
+                              }
+                            })
+
+                            return (
+                              <>
+                                {/* Variant Properties (Left) */}
+                                {variantProps.length > 0 && (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: '0 0 auto' }}>
+                                    {variantProps.map(([key, value]) => (
+                                      <div
+                                        key={key}
+                                        style={{
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          fontSize: '11px'
+                                        }}
+                                      >
+                                        <span style={{
+                                          color: 'var(--figma-color-text)',
+                                          fontWeight: 500,
+                                          padding: '2px 8px',
+                                          borderRadius: '3px',
+                                          background: 'var(--figma-color-bg-brand-tertiary)'
+                                        }}>
+                                          {String(value)}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+
+                                {/* Boolean Properties (Right) */}
+                                {boolProps.length > 0 && (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginLeft: 'auto', alignItems: 'flex-end' }}>
+                                    {boolProps.map(([key, value]) => {
+                                      const strValue = String(value).toLowerCase()
+                                      const boolValue = strValue === 'true'
+
+                                      return (
+                                        <div
+                                          key={key}
+                                          style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '6px',
+                                            fontSize: '11px'
+                                          }}
+                                        >
+                                          <span style={{
+                                            color: 'var(--figma-color-text-tertiary)'
+                                          }}>
+                                            {key}
+                                          </span>
+                                          <span style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            padding: '2px 6px',
+                                            borderRadius: '3px',
+                                            background: boolValue
+                                              ? 'var(--figma-color-bg-success)'
+                                              : 'var(--figma-color-bg-secondary)',
+                                            fontSize: '10px',
+                                            opacity: boolValue ? 1 : 0.5,
+                                            color: boolValue ? 'var(--figma-color-text-onbrand)' : 'var(--figma-color-text)',
+                                            fontWeight: 600
+                                          }}>
+                                            {boolValue ? '✓' : '✗'}
+                                          </span>
+                                        </div>
+                                      )
+                                    })}
+                                  </div>
+                                )}
+                              </>
+                            )
+                          })()}
+                        </div>
                       </div>
                     )
                   })}
@@ -739,7 +996,8 @@ function Plugin() {
           Generate Sticker Sheet
         </Button>
       </div>
-    </div>
+      </div>
+    </>
   )
 }
 

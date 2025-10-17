@@ -27,6 +27,35 @@ export default function () {
     }
   })
 
+  // Handle auto-selecting component by name
+  on('SELECT_COMPONENT_BY_NAME', async (componentName: string) => {
+    try {
+      // Search the current page for a component set with matching name
+      const allNodes = figma.currentPage.findAll(node => 
+        node.type === 'COMPONENT_SET' && node.name === componentName
+      )
+
+      if (allNodes.length > 0) {
+        // Select the first matching component set
+        figma.currentPage.selection = [allNodes[0] as SceneNode]
+        figma.viewport.scrollAndZoomIntoView([allNodes[0] as SceneNode])
+        
+        // Small delay to ensure selection is registered
+        await new Promise(resolve => setTimeout(resolve, 50))
+        
+        // Send updated selection data to UI
+        const componentData = getComponentData()
+        emit('INIT_DATA', componentData)
+        
+        console.log('Component selected:', componentName)
+      } else {
+        console.log('No component found with name:', componentName)
+      }
+    } catch (error) {
+      console.error('Error selecting component:', error)
+    }
+  })
+
   // Function to get component data from selection or page
   function getComponentData() {
     let componentSets: any[] = []
@@ -721,11 +750,16 @@ async function createTable(compSet: ComponentSetNode, combinations: any[], rowPr
 
 async function generatePreviews(combinations: any[]) {
   const selection = figma.currentPage.selection
+  console.log('Current selection:', selection.length, 'nodes')
+  
   const compSet = selection.find(node => node.type === 'COMPONENT_SET') as ComponentSetNode
 
   if (!compSet) {
+    console.error('No component set in selection. Selection:', selection.map(n => ({ type: n.type, name: n.name })))
     throw new Error('No component set selected')
   }
+  
+  console.log('Using component set:', compSet.name)
 
   const previews: { [key: string]: string } = {}
 
@@ -754,5 +788,6 @@ async function generatePreviews(combinations: any[]) {
     }
   }
 
+  console.log('Generated', Object.keys(previews).length, 'previews out of', combinations.length, 'combinations')
   return previews
 }
