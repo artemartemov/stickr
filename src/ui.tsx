@@ -131,7 +131,7 @@ function Plugin() {
 
     emit('GENERATE_STICKER_SHEET', {
       selectedCombinations: selected,
-      includeLightDark: false
+      includeLightDark: true
     })
   }
 
