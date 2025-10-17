@@ -11,14 +11,33 @@ import {
   IconInstance16,
   IconComponentProperty16,
   IconChevronDown16,
-  Muted
+  Muted,
+  Textbox,
+  SegmentedControl,
+  SegmentedControlOption
 } from '@create-figma-plugin/ui'
 import { h, Fragment } from 'preact'
 import { useState, useEffect } from 'preact/hooks'
+import * as yaml from 'js-yaml'
+import type { AnovaSpec } from './types/anova'
+import { filterValidVariants } from './types/anova'
+
+type DataSource = 'figma-direct' | 'anova'
 
 function Plugin() {
+  // Data source mode
+  const [dataSource, setDataSource] = useState<DataSource>('figma-direct')
+
+  // Figma Direct mode state
   const [componentSets, setComponentSets] = useState<any[]>([])
   const [expandedProperties, setExpandedProperties] = useState<{ [key: string]: boolean }>({})
+
+  // Anova mode state
+  const [anovaInput, setAnovaInput] = useState<string>('')
+  const [anovaSpec, setAnovaSpec] = useState<AnovaSpec | null>(null)
+  const [anovaError, setAnovaError] = useState<string>('')
+
+  // Shared state
   const [previewCombinations, setPreviewCombinations] = useState<any[]>([])
   const [selectedCombinations, setSelectedCombinations] = useState<{ [key: string]: boolean }>({})
   const [sortColumn, setSortColumn] = useState<string | null>(null)
@@ -112,6 +131,13 @@ function Plugin() {
     }))
   }
 
+  function getCombinationKey(combo: any): string {
+    if (dataSource === 'anova') {
+      return `anova:${combo.variantName}`
+    }
+    return `${combo.componentSetId}:${JSON.stringify(combo.properties)}`
+  }
+
   function handleSelectAll() {
     const allChecked = Object.values(selectedCombinations).every(v => v)
     const newState: { [key: string]: boolean } = {}
@@ -124,14 +150,16 @@ function Plugin() {
   }
 
   function handleGenerate() {
-    const selected = previewCombinations.filter((_, index) => {
-      const key = `${_.componentSetId}:${JSON.stringify(_.properties)}`
+    const selected = previewCombinations.filter((combo) => {
+      const key = getCombinationKey(combo)
       return selectedCombinations[key]
     })
 
     emit('GENERATE_STICKER_SHEET', {
+      dataSource: dataSource,
       selectedCombinations: selected,
-      includeLightDark: true
+      includeLightDark: true,
+      anovaComponentName: anovaSpec?.title
     })
   }
 
@@ -150,6 +178,175 @@ function Plugin() {
       // New column, default to ascending
       setSortColumn(columnName)
       setSortDirection('asc')
+    }
+  }
+
+  function handleModeChange(newMode: DataSource) {
+    setDataSource(newMode)
+    // Clear data from the other mode
+    if (newMode === 'figma-direct') {
+      setAnovaSpec(null)
+      setAnovaInput('')
+      setAnovaError('')
+    } else {
+      // Keep component sets but clear expanded properties
+      setExpandedProperties({})
+    }
+    // Clear preview and selections
+    setPreviewCombinations([])
+    setSelectedCombinations({})
+  }
+
+  function handleAnovaImport() {
+    try {
+      setAnovaError('')
+
+      // Try parsing as YAML first, then JSON
+      let parsed: any
+      try {
+        parsed = yaml.load(anovaInput)
+      } catch (yamlError) {
+        // If YAML fails, try JSON
+        parsed = JSON.parse(anovaInput)
+      }
+
+      // Validate structure
+      if (!parsed.title || !parsed.props || !parsed.variants) {
+        throw new Error('Invalid Anova format: missing required fields (title, props, variants)')
+      }
+
+      const spec = parsed as AnovaSpec
+      setAnovaSpec(spec)
+
+      // Get base valid variants (filters out invalid ones)
+      const validVariants = filterValidVariants(spec)
+
+      // Extract boolean properties
+      const booleanProps: string[] = []
+      for (const [propName, prop] of Object.entries(spec.props)) {
+        if (prop.type === 'boolean') {
+          booleanProps.push(propName)
+        }
+      }
+
+      // Generate all combinations of boolean values
+      const generateBooleanCombinations = (props: string[]): Record<string, boolean>[] => {
+        if (props.length === 0) return [{}]
+
+        const result: Record<string, boolean>[] = []
+        const totalCombos = Math.pow(2, props.length)
+
+        for (let i = 0; i < totalCombos; i++) {
+          const combo: Record<string, boolean> = {}
+          for (let j = 0; j < props.length; j++) {
+            combo[props[j]] = Boolean((i >> j) & 1)
+          }
+          result.push(combo)
+        }
+
+        return result
+      }
+
+      const booleanCombos = generateBooleanCombinations(booleanProps)
+
+      // Generate full combinations: base variants × boolean combinations
+      const combinations: any[] = []
+      const selected: { [key: string]: boolean } = {}
+
+      for (const variant of validVariants) {
+        // Find the matching variant spec to check element availability
+        const variantSpec = variant.name === (spec.default.name || 'default')
+          ? spec.default
+          : spec.variants.find(v => v.name === variant.name)
+
+        for (const boolCombo of booleanCombos) {
+          // Check if this boolean combination is valid for this variant
+          // by verifying that elements controlled by these booleans exist
+          let isValidCombo = true
+
+          if (variantSpec) {
+            // Check each boolean prop
+            for (const [boolProp, boolValue] of Object.entries(boolCombo)) {
+              // Find elements controlled by this boolean in the default
+              const controlledElements = Object.entries(spec.default.elements || {}).filter(([elemName, elem]) => {
+                return elem.propReferences?.visible?.$ref === `#/props/${boolProp}`
+              })
+
+              // If boolean is true, check if the controlled elements exist in this variant
+              if (boolValue === true && controlledElements.length > 0) {
+                for (const [elemName] of controlledElements) {
+                  // Check 1: Has the variant set propReferences.visible to null? (explicitly disabled)
+                  const variantElem = variantSpec.elements?.[elemName]
+                  if (variantElem?.propReferences?.visible === null) {
+                    isValidCombo = false
+                    break
+                  }
+
+                  // Check 2: Get the element's parent and check if element is in parent's children list
+                  const defaultElem = spec.default.elements?.[elemName]
+                  const parentName = defaultElem?.parent
+
+                  if (parentName) {
+                    // Check if the parent element in this variant has this element in its children list
+                    const variantParent = variantSpec.elements?.[parentName]
+
+                    if (variantParent?.children) {
+                      // Variant explicitly defines children for this parent - check if element is included
+                      if (!variantParent.children.includes(elemName)) {
+                        isValidCombo = false
+                        break
+                      }
+                    }
+                    // If variant doesn't override the parent's children, element exists from default
+                  }
+                }
+              }
+            }
+          }
+
+          if (isValidCombo) {
+            const fullConfig = { ...variant.configuration, ...boolCombo }
+
+            // Check if this combination matches any invalid configuration
+            const matchesInvalidConfig = spec.invalidConfigurations.some(invalidConfig => {
+              // Check if all properties in invalidConfig match this combination
+              return Object.keys(invalidConfig).every(key => {
+                return fullConfig[key] === invalidConfig[key]
+              })
+            })
+
+            // Skip this combination if it matches an invalid configuration
+            if (matchesInvalidConfig) {
+              continue
+            }
+
+            const configStr = Object.entries(fullConfig)
+              .sort(([a], [b]) => a.localeCompare(b))
+              .map(([k, v]) => `${k}=${v}`)
+              .join(', ')
+
+            const key = `anova:${configStr}`
+
+            combinations.push({
+              componentSetId: 'anova',
+              componentSetName: spec.title,
+              variantName: configStr,
+              properties: fullConfig,
+              isValid: true
+            })
+            selected[key] = false
+          }
+        }
+      }
+
+      setPreviewCombinations(combinations)
+      setSelectedCombinations(selected)
+
+    } catch (error: any) {
+      setAnovaError(error.message || 'Failed to parse Anova data')
+      setAnovaSpec(null)
+      setPreviewCombinations([])
+      setSelectedCombinations({})
     }
   }
 
@@ -195,13 +392,74 @@ function Plugin() {
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {componentSets.length === 0 ? (
+      {/* Mode Toggle */}
+      <div style={{ padding: '12px', borderBottom: '1px solid var(--figma-color-border)', flexShrink: 0 }}>
+        <div style={{ marginBottom: '8px' }}>
+          <Text style={{ fontSize: '11px', fontWeight: 600 }}>Data Source</Text>
+        </div>
+        <SegmentedControl
+          value={dataSource}
+          onValueChange={(value) => handleModeChange(value as DataSource)}
+          options={[
+            { value: 'figma-direct', children: <Text>Figma Direct</Text> },
+            { value: 'anova', children: <Text>Anova Data</Text> }
+          ]}
+        />
+      </div>
+
+      {/* Anova Input Section */}
+      {dataSource === 'anova' && (
+        <div style={{ padding: '12px', borderBottom: '1px solid var(--figma-color-border)', flexShrink: 0 }}>
+          <div style={{ marginBottom: '8px' }}>
+            <Text style={{ fontSize: '11px', fontWeight: 600 }}>Paste Anova YAML/JSON</Text>
+          </div>
+          <textarea
+            value={anovaInput}
+            onChange={(e: any) => setAnovaInput(e.target.value)}
+            placeholder="Paste Anova component spec here..."
+            style={{
+              width: '100%',
+              minHeight: '120px',
+              padding: '8px',
+              fontFamily: 'monospace',
+              fontSize: '10px',
+              border: '1px solid var(--figma-color-border)',
+              borderRadius: '4px',
+              background: 'var(--figma-color-bg)',
+              color: 'var(--figma-color-text)',
+              resize: 'vertical'
+            }}
+          />
+          {anovaError && (
+            <div style={{ marginTop: '8px', color: 'var(--figma-color-text-danger)', fontSize: '11px' }}>
+              {anovaError}
+            </div>
+          )}
+          <div style={{ marginTop: '8px' }}>
+            <Button fullWidth onClick={handleAnovaImport} disabled={!anovaInput.trim()}>
+              Import Anova Data
+            </Button>
+          </div>
+          {anovaSpec && (
+            <div style={{ marginTop: '8px', fontSize: '11px', color: 'var(--figma-color-text-secondary)' }}>
+              ✓ Loaded: {anovaSpec.title} ({previewCombinations.length} valid variants)
+            </div>
+          )}
+        </div>
+      )}
+
+      {dataSource === 'figma-direct' && componentSets.length === 0 ? (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <Muted>Select a component or component set on the canvas</Muted>
         </div>
+      ) : dataSource === 'anova' && !anovaSpec ? (
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Muted>Paste Anova data above to get started</Muted>
+        </div>
       ) : (
         <>
-          {/* Properties Section */}
+          {/* Properties Section - Only show in Figma Direct mode */}
+          {dataSource === 'figma-direct' && (
           <div style={{ display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
         <div 
           style={{ padding: '12px 12px 8px 12px', minHeight: '40px', cursor: 'pointer', position: 'sticky', top: 0, background: 'var(--figma-color-bg)', zIndex: 1 }}
@@ -289,8 +547,9 @@ function Plugin() {
           </div>
         )}
       </div>
+          )}
 
-      <VerticalSpace space="medium" />
+      {dataSource === 'figma-direct' && <VerticalSpace space="medium" />}
 
       {/* Preview Section - Takes remaining space */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
@@ -324,7 +583,53 @@ function Plugin() {
                 <div style={{ textAlign: 'center', paddingTop: '40px' }}>
                   <Muted>No combinations to show</Muted>
                 </div>
+              ) : dataSource === 'anova' ? (
+                /* Anova Mode - Simple list view */
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {sortedCombinations.map((combo, index) => {
+                    const key = getCombinationKey(combo)
+                    const isSelected = selectedCombinations[key] || false
+                    const isHovered = hoveredRow === key
+
+                    let bgColor = 'transparent'
+                    if (isSelected) {
+                      bgColor = 'var(--figma-color-bg-selected)'
+                    } else if (isHovered) {
+                      bgColor = 'var(--figma-color-bg-hover)'
+                    }
+
+                    return (
+                      <div
+                        key={index}
+                        style={{
+                          cursor: 'pointer',
+                          background: bgColor,
+                          borderRadius: '6px',
+                          padding: '12px',
+                          border: '1px solid var(--figma-color-border)'
+                        }}
+                        onMouseEnter={() => setHoveredRow(key)}
+                        onMouseLeave={() => setHoveredRow(null)}
+                        onClick={() => handleCombinationToggle(key)}
+                      >
+                        <div style={{ fontWeight: 600, marginBottom: '4px', fontSize: '12px' }}>
+                          {combo.variantName}
+                        </div>
+                        {combo.properties && Object.keys(combo.properties).length > 0 && (
+                          <div style={{ fontSize: '11px', color: 'var(--figma-color-text-secondary)' }}>
+                            {Object.entries(combo.properties).map(([key, value]) => (
+                              <span key={key} style={{ marginRight: '12px' }}>
+                                {key}: <strong>{formatPropertyValue(value)}</strong>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
               ) : (
+                /* Figma Direct Mode - Table view */
             <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: '11px' }}>
               <thead>
                 <tr style={{ height: '40px' }}>
@@ -365,7 +670,7 @@ function Plugin() {
               </thead>
               <tbody>
                 {sortedCombinations.map((combo, index) => {
-                  const key = `${combo.componentSetId}:${JSON.stringify(combo.properties)}`
+                  const key = getCombinationKey(combo)
                   const isSelected = selectedCombinations[key] || false
                   const isHovered = hoveredRow === key
                   
