@@ -12,8 +12,9 @@ import {
   IconComponentProperty16,
   IconChevronDown16,
   Muted,
-
-  LoadingIndicator
+  LoadingIndicator,
+  Dropdown,
+  DropdownOption
 } from '@create-figma-plugin/ui'
 import { h, Fragment } from 'preact'
 import { useState, useEffect } from 'preact/hooks'
@@ -49,6 +50,9 @@ function Plugin() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
   const [isPropertiesCollapsed, setIsPropertiesCollapsed] = useState(false)
   const [hoveredRow, setHoveredRow] = useState<string | null>(null)
+  const [collapsedGroups, setCollapsedGroups] = useState<{ [key: string]: boolean }>({})
+  const [activeFilters, setActiveFilters] = useState<{ [propName: string]: string | null }>({})
+  const [lastClickedIndex, setLastClickedIndex] = useState<number | null>(null)
 
   // Listen for initial data from backend - set up handler immediately
   on('INIT_DATA', (data: any[]) => {
@@ -171,11 +175,31 @@ function Plugin() {
     }))
   }
 
-  function handleCombinationToggle(key: string) {
-    setSelectedCombinations(prev => ({
-      ...prev,
-      [key]: !prev[key]
-    }))
+  function handleCombinationToggle(key: string, index: number, isShiftClick: boolean = false) {
+    if (isShiftClick && lastClickedIndex !== null) {
+      // Shift-click: select range
+      const start = Math.min(lastClickedIndex, index)
+      const end = Math.max(lastClickedIndex, index)
+
+      // Get the visible combinations (after filtering/sorting/grouping)
+      const visibleCombinations = sortedCombinations.slice(start, end + 1)
+
+      const newState = { ...selectedCombinations }
+      visibleCombinations.forEach(combo => {
+        const comboKey = getCombinationKey(combo)
+        newState[comboKey] = true // Always select on shift-click
+      })
+
+      setSelectedCombinations(newState)
+    } else {
+      // Normal click: toggle single item
+      setSelectedCombinations(prev => ({
+        ...prev,
+        [key]: !prev[key]
+      }))
+    }
+
+    setLastClickedIndex(index)
   }
 
   function getCombinationKey(combo: any): string {
@@ -194,6 +218,46 @@ function Plugin() {
     }
 
     setSelectedCombinations(newState)
+  }
+
+  function handleGroupToggle(groupKey: string) {
+    setCollapsedGroups(prev => ({
+      ...prev,
+      [groupKey]: !prev[groupKey]
+    }))
+  }
+
+  function handleGroupSelectAll(groupCombos: any[]) {
+    const groupKeys = groupCombos.map(combo => getCombinationKey(combo))
+    const allSelected = groupKeys.every(key => selectedCombinations[key])
+
+    const newState = { ...selectedCombinations }
+    groupKeys.forEach(key => {
+      newState[key] = !allSelected
+    })
+
+    setSelectedCombinations(newState)
+  }
+
+  function handleFilterChange(propName: string, value: string | null) {
+    setActiveFilters(prev => ({
+      ...prev,
+      [propName]: value
+    }))
+  }
+
+  function handleClearFilters() {
+    setActiveFilters({})
+  }
+
+  function getUniquePropertyValues(propName: string): string[] {
+    const uniqueValues = new Set<string>()
+    previewCombinations.forEach(combo => {
+      if (combo.properties[propName] !== undefined) {
+        uniqueValues.add(String(combo.properties[propName]))
+      }
+    })
+    return Array.from(uniqueValues).sort()
   }
 
   function handleGenerate() {
@@ -429,9 +493,23 @@ function Plugin() {
     }
   })
 
+  // Apply filters first
+  const filteredCombinations = previewCombinations.filter(combo => {
+    // Check each active filter
+    for (const [propName, filterValue] of Object.entries(activeFilters)) {
+      if (filterValue === null || filterValue === '') continue // Skip empty filters
+
+      const comboValue = combo.properties[propName]
+      if (String(comboValue) !== filterValue) {
+        return false // Combination doesn't match this filter
+      }
+    }
+    return true // Passes all filters
+  })
+
   // Sort combinations if a column is selected
   const sortedCombinations = sortColumn
-    ? [...previewCombinations].sort((a, b) => {
+    ? [...filteredCombinations].sort((a, b) => {
         const aVal = a.properties[sortColumn]
         const bVal = b.properties[sortColumn]
 
@@ -447,7 +525,32 @@ function Plugin() {
         const comparison = aStr.localeCompare(bStr)
         return sortDirection === 'asc' ? comparison : -comparison
       })
-    : previewCombinations
+    : filteredCombinations
+
+  // Group combinations by primary variant property (e.g., Type)
+  const groupedCombinations: { [groupKey: string]: any[] } = {}
+  let groupingProperty = ''
+
+  if (dataSource === 'anova' && anovaSpec) {
+    // Find the first VARIANT property as the grouping property
+    for (const [propName, prop] of Object.entries(anovaSpec.props)) {
+      if (prop.enum && prop.enum.length > 0) {
+        groupingProperty = propName
+        break
+      }
+    }
+
+    // Group combinations by this property
+    sortedCombinations.forEach(combo => {
+      const groupValue = combo.properties[groupingProperty]
+      const groupKey = groupValue ? String(groupValue) : 'Other'
+
+      if (!groupedCombinations[groupKey]) {
+        groupedCombinations[groupKey] = []
+      }
+      groupedCombinations[groupKey].push(combo)
+    })
+  }
 
   return (
     <>
@@ -545,6 +648,8 @@ function Plugin() {
           )}
         </div>
       )}
+
+
 
       {dataSource === 'figma-direct' && componentSets.length === 0 ? (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -705,6 +810,45 @@ function Plugin() {
                     </div>
                   </>
                 )}
+                
+                {/* Filter Dropdowns - Only show in Anova mode when spec is loaded */}
+                {dataSource === 'anova' && anovaSpec && previewCombinations.length > 0 && (() => {
+                  const filterableProps = Object.entries(anovaSpec.props).filter(([propName, prop]) => {
+                    return prop.enum && prop.enum.length > 0
+                  })
+
+                  if (filterableProps.length === 0) return null
+
+                  return (
+                    <>
+                      <div style={{ fontSize: '11px', color: 'var(--figma-color-text-tertiary)' }}>·</div>
+                      {filterableProps.map(([propName, prop]) => {
+                        const uniqueValues = getUniquePropertyValues(propName)
+                        const currentFilter = activeFilters[propName]
+
+                        const options: DropdownOption[] = [
+                          { value: '', text: `All ${propName}` },
+                          ...uniqueValues.map(value => ({ value, text: value }))
+                        ]
+
+                        return (
+                          <div key={propName} style={{ minWidth: '100px' }}>
+                            <Dropdown
+                              value={currentFilter || ''}
+                              options={options}
+                              onChange={(newValue) => handleFilterChange(propName, newValue.currentTarget.value || null)}
+                              style={{
+                                fontSize: '11px',
+                                borderColor: currentFilter ? 'var(--figma-color-text-brand)' : undefined,
+                                fontWeight: currentFilter ? 600 : 400
+                              }}
+                            />
+                          </div>
+                        )
+                      })}
+                    </>
+                  )
+                })()}
               </div>
               <Button secondary onClick={handleSelectAll}>
                 {Object.values(selectedCombinations).every(v => v) ? 'Deselect All' : 'Select All'}
@@ -717,17 +861,81 @@ function Plugin() {
                   <Muted>No combinations to show</Muted>
                 </div>
               ) : dataSource === 'anova' ? (
-                /* Anova Mode - List view with thumbnails */
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {sortedCombinations.map((combo, index) => {
+                /* Anova Mode - Grouped list view with thumbnails */
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  {Object.keys(groupedCombinations).length > 0 ? (
+                    Object.entries(groupedCombinations).map(([groupKey, groupCombos]) => {
+                      const isCollapsed = collapsedGroups[groupKey] || false
+                      const groupSelectedCount = groupCombos.filter(combo =>
+                        selectedCombinations[getCombinationKey(combo)]
+                      ).length
+
+                      return (
+                        <div key={groupKey} style={{ marginBottom: isCollapsed ? '8px' : '16px' }}>
+                          {/* Custom Minimal Disclosure Header */}
+                          <div 
+                            style={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: '4px',
+                              padding: '4px 0',
+                              cursor: 'pointer',
+                              userSelect: 'none',
+                              marginLeft: '-2px'
+                            }}
+                            onClick={() => handleGroupToggle(groupKey)}
+                          >
+                            {/* Chevron Icon */}
+                            <div style={{
+                              transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
+                              transition: 'transform 0.15s ease',
+                              display: 'flex',
+                              alignItems: 'center',
+                              color: 'var(--figma-color-text-secondary)',
+                              marginRight: '2px'
+                            }}>
+                              <IconChevronDown16 />
+                            </div>
+                            
+                            {/* Title */}
+                            <Text style={{ fontWeight: 500 }}>
+                              {groupingProperty}: {groupKey}
+                            </Text>
+                            
+                            {/* Count */}
+                            <Muted style={{ fontSize: '11px', marginLeft: '2px' }}>
+                              ({groupSelectedCount} / {groupCombos.length})
+                            </Muted>
+                            
+                            {/* Select All Button */}
+                            <div style={{ marginLeft: 'auto' }}>
+                              <Button
+                                secondary
+                                onClick={(e: any) => {
+                                  e.stopPropagation()
+                                  handleGroupSelectAll(groupCombos)
+                                }}
+                              >
+                                {groupSelectedCount === groupCombos.length ? `Deselect ${groupKey}` : `Select ${groupKey}`}
+                              </Button>
+                            </div>
+                          </div>
+                          
+                          {/* Group Items */}
+                          {!isCollapsed && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px', width: '100%' }}>
+                            {groupCombos.map((combo, localIndex) => {
                     const key = getCombinationKey(combo)
                     const isSelected = selectedCombinations[key] || false
                     const isHovered = hoveredRow === key
                     const previewImage = previews[combo.variantName]
 
+                    // Calculate global index in sortedCombinations
+                    const globalIndex = sortedCombinations.findIndex(c => getCombinationKey(c) === key)
+
                     // Debug logging for first few items
-                    if (index < 3) {
-                      console.log(`Combo ${index}:`, {
+                    if (localIndex < 3) {
+                      console.log(`Combo ${localIndex}:`, {
                         variantName: combo.variantName,
                         hasPreview: !!previewImage,
                         previewKeys: Object.keys(previews).slice(0, 5),
@@ -744,7 +952,7 @@ function Plugin() {
 
                     return (
                       <div
-                        key={index}
+                        key={localIndex}
                         style={{
                           cursor: 'pointer',
                           background: bgColor,
@@ -757,7 +965,7 @@ function Plugin() {
                         }}
                         onMouseEnter={() => setHoveredRow(key)}
                         onMouseLeave={() => setHoveredRow(null)}
-                        onClick={() => handleCombinationToggle(key)}
+                        onClick={(e: any) => handleCombinationToggle(key, globalIndex, e.shiftKey)}
                       >
                         {/* Thumbnail */}
                         <div style={{
@@ -797,6 +1005,11 @@ function Plugin() {
                             const variantProps: [string, any][] = []
 
                             Object.entries(combo.properties).forEach(([key, value]) => {
+                              // Skip the grouping property since it's already shown in the group header
+                              if (key === groupingProperty) {
+                                return
+                              }
+                              
                               const strValue = String(value).toLowerCase()
                               const isBool = strValue === 'true' || strValue === 'false'
 
@@ -853,22 +1066,22 @@ function Plugin() {
                                           }}
                                         >
                                           <span style={{
-                                            color: 'var(--figma-color-text-tertiary)'
+                                            color: 'var(--figma-color-text-secondary)'
                                           }}>
                                             {key}
                                           </span>
                                           <span style={{
                                             display: 'inline-flex',
                                             alignItems: 'center',
-                                            padding: '2px 6px',
+                                            padding: '2px',
                                             borderRadius: '3px',
                                             background: boolValue
                                               ? 'var(--figma-color-bg-success)'
                                               : 'var(--figma-color-bg-secondary)',
                                             fontSize: '10px',
-                                            opacity: boolValue ? 1 : 0.5,
-                                            color: boolValue ? 'var(--figma-color-text-onbrand)' : 'var(--figma-color-text)',
-                                            fontWeight: 600
+                                            color: boolValue ? 'var(--figma-color-text-onbrand)' : 'var(--figma-color-text-tertiary)',
+                                            fontWeight: 600,
+                                            lineHeight: 1
                                           }}>
                                             {boolValue ? '✓' : '✗'}
                                           </span>
@@ -884,6 +1097,18 @@ function Plugin() {
                       </div>
                     )
                   })}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })
+                  ) : (
+                    /* Fallback for no grouping */
+                    sortedCombinations.map((combo, index) => {
+                      const key = getCombinationKey(combo)
+                      return <div key={key}>No grouping available</div>
+                    })
+                  )}
                 </div>
               ) : (
                 /* Figma Direct Mode - Table view */
@@ -947,7 +1172,7 @@ function Plugin() {
                       }}
                       onMouseEnter={() => setHoveredRow(key)}
                       onMouseLeave={() => setHoveredRow(null)}
-                      onClick={() => handleCombinationToggle(key)}
+                      onClick={(e: any) => handleCombinationToggle(key, index, e.shiftKey)}
                     >
                       <td colSpan={propertyOrder.length} style={{ padding: 0 }}>
                         <div style={{
