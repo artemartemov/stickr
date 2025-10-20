@@ -14,7 +14,12 @@ import {
   Muted,
   LoadingIndicator,
   Dropdown,
-  DropdownOption
+  DropdownOption,
+  TextboxMultiline,
+  Modal,
+  IconButton,
+  IconPlus16,
+  IconClose16
 } from '@create-figma-plugin/ui'
 import { h, Fragment } from 'preact'
 import { useState, useEffect } from 'preact/hooks'
@@ -27,6 +32,7 @@ type DataSource = 'figma-direct' | 'anova'
 function Plugin() {
   // Data source mode
   const [dataSource, setDataSource] = useState<DataSource>('figma-direct')
+  const [showComponentDataTab, setShowComponentDataTab] = useState(false)
 
   // Figma Direct mode state
   const [componentSets, setComponentSets] = useState<any[]>([])
@@ -54,9 +60,15 @@ function Plugin() {
   const [activeFilters, setActiveFilters] = useState<{ [propName: string]: string | null }>({})
   const [lastClickedIndex, setLastClickedIndex] = useState<number | null>(null)
 
+  // Component Data filter (for Figma Direct mode)
+  const [componentDataInput, setComponentDataInput] = useState<string>('')
+  const [componentDataSpec, setComponentDataSpec] = useState<AnovaSpec | null>(null)
+  const [componentDataError, setComponentDataError] = useState<string>('')
+  const [isComponentDataModalOpen, setIsComponentDataModalOpen] = useState(false)
+const [selectedGroupingProperty, setSelectedGroupingProperty] = useState<string | null>(null)
+
   // Listen for initial data from backend - set up handler immediately
   on('INIT_DATA', (data: any[]) => {
-    console.log('INIT_DATA received:', data.length, 'component sets')
     setComponentSets(data)
 
     // Auto-expand VARIANT and BOOLEAN properties
@@ -74,34 +86,23 @@ function Plugin() {
 
   // Listen for preview generation responses
   on('PREVIEWS_READY', (data: { [variantName: string]: string }) => {
-    console.log('Received previews:', Object.keys(data).length, 'images')
     setPreviews(data)
     setPreviewsLoading(false)
     setPreviewsError(null)
   })
 
   on('PREVIEWS_ERROR', (data: { error: string }) => {
-    console.log('Preview error:', data.error)
     setPreviewsError(data.error)
     setPreviewsLoading(false)
   })
 
   // Auto-continue import after component is selected
   useEffect(() => {
-    console.log('useEffect check:', {
-      waitingForAutoSelect,
-      componentSetsLength: componentSets.length,
-      hasAnovaSpec: !!anovaSpec,
-      previewCombinationsLength: previewCombinations.length
-    })
-
     if (waitingForAutoSelect && componentSets.length > 0 && anovaSpec && previewCombinations.length > 0) {
-      console.log('Auto-select complete, requesting previews...')
       setWaitingForAutoSelect(false)
       // Request previews now that component is selected
       // Add small delay to ensure selection is fully registered in Figma
       setTimeout(() => {
-        console.log('Emitting GENERATE_PREVIEWS with', previewCombinations.length, 'combinations')
         setPreviewsLoading(true)
         setPreviewsError(null)
         emit('GENERATE_PREVIEWS', { combinations: previewCombinations })
@@ -114,8 +115,6 @@ function Plugin() {
     // Skip if in Anova mode - Anova handles its own combinations
     if (dataSource === 'anova') return
     if (componentSets.length === 0) return
-
-    console.log('Regenerating Figma Direct combinations')
 
     const combinations: any[] = []
     const selected: { [key: string]: boolean } = {}
@@ -151,13 +150,25 @@ function Plugin() {
     
     // Request preview generation for Figma Direct mode
     if (combinations.length > 0) {
-      console.log('Requesting previews for Figma Direct combinations:', combinations.length)
       setPreviewsLoading(true)
       setPreviewsError(null)
       
       emit('GENERATE_PREVIEWS', { combinations })
     }
   }, [componentSets, expandedProperties, dataSource])
+
+  // Keyboard shortcut listener for Ctrl+D to toggle Component Data tab
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+        e.preventDefault()
+        setShowComponentDataTab(prev => !prev)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   function generateCombinations(properties: any, propsToExpand: string[]): any[] {
     if (propsToExpand.length === 0) return [{}]
@@ -181,6 +192,29 @@ function Plugin() {
 
     recurse(0, {})
     return result
+  }
+
+  function handleComponentDataParse() {
+    if (!componentDataInput.trim()) {
+      setComponentDataSpec(null)
+      setComponentDataError('')
+      return
+    }
+
+    try {
+      const parsed = yaml.load(componentDataInput) as AnovaSpec
+
+      // Validate basic structure
+      if (!parsed.title || !parsed.props || !parsed.variants) {
+        throw new Error('Invalid component data structure. Expected title, props, and variants.')
+      }
+
+      setComponentDataSpec(parsed)
+      setComponentDataError('')
+    } catch (err) {
+      setComponentDataError(err instanceof Error ? err.message : 'Failed to parse YAML')
+      setComponentDataSpec(null)
+    }
   }
 
   function handlePropertyToggle(propName: string) {
@@ -225,12 +259,18 @@ function Plugin() {
   }
 
   function handleSelectAll() {
-    const allChecked = Object.values(selectedCombinations).every(v => v)
-    const newState: { [key: string]: boolean } = {}
-
-    for (const key in selectedCombinations) {
-      newState[key] = !allChecked
-    }
+    // Only select valid combinations (exclude invalid ones)
+    const validCombinationKeys = sortedCombinations
+      .filter((c: any) => c.isValidCombination !== false)
+      .map(combo => getCombinationKey(combo))
+    
+    const allValidChecked = validCombinationKeys.every(key => selectedCombinations[key])
+    const newState = { ...selectedCombinations }
+    
+    // Toggle only valid combinations
+    validCombinationKeys.forEach(key => {
+      newState[key] = !allValidChecked
+    })
 
     setSelectedCombinations(newState)
   }
@@ -249,6 +289,31 @@ function Plugin() {
     const newState = { ...selectedCombinations }
     groupKeys.forEach(key => {
       newState[key] = !allSelected
+    })
+
+    setSelectedCombinations(newState)
+  }
+
+  function handleSelectAcrossGroups(combo: any, currentGroupingProperty: string) {
+    // Find all combinations that match the same properties except the grouping property
+    const matchingCombos = sortedCombinations.filter((c: any) => {
+      // Skip invalid combinations
+      if (c.isValidCombination === false) return false
+      
+      // Compare all properties except the grouping property
+      for (const propName in combo.properties) {
+        if (propName === currentGroupingProperty) continue // Skip the grouping property
+        if (c.properties[propName] !== combo.properties[propName]) {
+          return false
+        }
+      }
+      return true
+    })
+
+    const newState = { ...selectedCombinations }
+    matchingCombos.forEach(matchingCombo => {
+      const key = getCombinationKey(matchingCombo)
+      newState[key] = true
     })
 
     setSelectedCombinations(newState)
@@ -318,10 +383,23 @@ function Plugin() {
       // Get base valid variants (filters out invalid ones)
       const validVariants = filterValidVariants(spec)
 
-      // Extract boolean properties
+      // Collect properties that are already defined in variant configurations
+      const variantConfiguredProps = new Set<string>()
+      
+      if (spec.default.configuration) {
+        Object.keys(spec.default.configuration).forEach(key => variantConfiguredProps.add(key))
+      }
+      for (const variant of spec.variants) {
+        if (variant.configuration) {
+          Object.keys(variant.configuration).forEach(key => variantConfiguredProps.add(key))
+        }
+      }
+      
+      // Only expand boolean properties that are NOT already in variant configurations
+      // These are instance-level properties like hasChevron, hasLeadingIcon, etc.
       const booleanProps: string[] = []
       for (const [propName, prop] of Object.entries(spec.props)) {
-        if (prop.type === 'boolean') {
+        if (prop.type === 'boolean' && !variantConfiguredProps.has(propName)) {
           booleanProps.push(propName)
         }
       }
@@ -508,8 +586,122 @@ function Plugin() {
     }
   })
 
-  // Apply filters first
-  const filteredCombinations = previewCombinations.filter(combo => {
+  // Apply component data validation (if in Figma Direct mode with component data)
+  // Mark combinations as valid/invalid instead of filtering them out
+  let componentDataFilteredCombinations = previewCombinations
+  if (dataSource === 'figma-direct' && componentDataSpec) {
+    const validVariants = filterValidVariants(componentDataSpec)
+    
+    // Determine which properties are VARIANT vs BOOLEAN
+    const variantProps = new Set<string>()
+    const booleanProps = new Set<string>()
+    
+    for (const [propName, prop] of Object.entries(componentDataSpec.props)) {
+      // VARIANT properties have enum values
+      if (prop.enum && prop.enum.length > 0) {
+        variantProps.add(propName)
+      } else if (prop.type === 'boolean') {
+        booleanProps.add(propName)
+      }
+    }
+    
+    componentDataFilteredCombinations = previewCombinations.map(combo => {
+      // Split combo properties into VARIANT and BOOLEAN parts
+      const variantConfig: Record<string, any> = {}
+      const booleanConfig: Record<string, any> = {}
+      
+      for (const [propName, propValue] of Object.entries(combo.properties)) {
+        if (variantProps.has(propName)) {
+          variantConfig[propName] = propValue
+        } else if (booleanProps.has(propName)) {
+          booleanConfig[propName] = propValue
+        }
+      }
+      
+      // Find validVariant(s) that match the VARIANT properties
+      const matchingVariants = validVariants.filter(validVariant => {
+        // Check if all VARIANT properties match
+        return Object.keys(variantConfig).every(key => {
+          const variantValue = String(validVariant.configuration[key] || '').toLowerCase()
+          const comboValue = String(variantConfig[key]).toLowerCase()
+          return variantValue === comboValue
+        })
+      })
+      
+      let isValid = false
+      
+      if (matchingVariants.length > 0) {
+        // Check if the BOOLEAN properties are valid for ANY matching variant
+        isValid = matchingVariants.some(matchingVariant => {
+          // Find the variant spec for element validation
+          const variantSpec = matchingVariant.name === (componentDataSpec.default.name || 'default')
+            ? componentDataSpec.default
+            : componentDataSpec.variants.find(v => v.name === matchingVariant.name)
+          
+          if (!variantSpec) return false
+          
+          // Validate each boolean property
+          for (const [propName, propValue] of Object.entries(booleanConfig)) {
+            const boolValue = String(propValue).toLowerCase() === 'true'
+            
+            // Find elements controlled by this boolean
+            const controlledElements = Object.entries(componentDataSpec.default.elements || {}).filter(([elemName, elem]) => {
+              return elem.propReferences?.visible?.$ref === `#/props/${propName}`
+            })
+            
+            // If boolean is true, check if controlled elements exist in this variant
+            if (boolValue === true && controlledElements.length > 0) {
+              for (const [elemName] of controlledElements) {
+                const variantElem = variantSpec.elements?.[elemName]
+                if (variantElem?.propReferences?.visible === null) {
+                  return false  // Boolean prop not valid for this variant
+                }
+                
+                // Check parent-child relationships
+                const defaultElem = componentDataSpec.default.elements?.[elemName]
+                const parentName = defaultElem?.parent
+                
+                if (parentName) {
+                  const variantParent = variantSpec.elements?.[parentName]
+                  if (variantParent?.children) {
+                    if (!variantParent.children.includes(elemName)) {
+                      return false  // Element not in variant's parent children
+                    }
+                  }
+                }
+              }
+            }
+          }
+          
+          return true  // All boolean properties are valid for this variant
+        })
+      }
+      
+      // Check invalid configurations
+      if (isValid) {
+        const fullConfig = { ...variantConfig, ...booleanConfig }
+        const matchesInvalidConfig = componentDataSpec.invalidConfigurations.some(invalidConfig => {
+          return Object.keys(invalidConfig).every(key => {
+            const invalidValue = String(invalidConfig[key]).toLowerCase()
+            const comboValue = String(fullConfig[key]).toLowerCase()
+            return invalidValue === comboValue
+          })
+        })
+        
+        if (matchesInvalidConfig) {
+          isValid = false
+        }
+      }
+      
+      return { ...combo, isValidCombination: isValid }
+    })
+  } else {
+    // No component data spec, mark all as valid
+    componentDataFilteredCombinations = previewCombinations.map(combo => ({ ...combo, isValidCombination: true }))
+  }
+
+  // Apply property filters
+  const filteredCombinations = componentDataFilteredCombinations.filter(combo => {
     // Check each active filter
     for (const [propName, filterValue] of Object.entries(activeFilters)) {
       if (filterValue === null || filterValue === '') continue // Skip empty filters
@@ -546,8 +738,11 @@ function Plugin() {
   const groupedCombinations: { [groupKey: string]: any[] } = {}
   let groupingProperty = ''
 
-  // Determine grouping property based on data source
-  if (dataSource === 'anova' && anovaSpec) {
+  // Determine grouping property based on user selection or default
+  if (selectedGroupingProperty) {
+    // Use user-selected grouping property
+    groupingProperty = selectedGroupingProperty
+  } else if (dataSource === 'anova' && anovaSpec) {
     // Anova mode: Find the first VARIANT property
     for (const [propName, prop] of Object.entries(anovaSpec.props)) {
       if (prop.enum && prop.enum.length > 0) {
@@ -556,11 +751,15 @@ function Plugin() {
       }
     }
   } else if (dataSource === 'figma-direct' && propertyOrder.length > 0) {
-    // Figma Direct mode: Use the first VARIANT property
+    // Figma Direct mode: Use the first VARIANT property with 3+ values
+    console.log('🔍 Determining grouping property from propertyOrder:', propertyOrder)
     for (const propName of propertyOrder) {
       const prop = allProperties[propName]
-      if (prop && prop.type === 'VARIANT') {
+      const valueCount = prop?.values?.length || 0
+      console.log(`  - Checking "${propName}": type=${prop?.type}, values=${valueCount}`)
+      if (prop && prop.type === 'VARIANT' && valueCount > 2) {
         groupingProperty = propName
+        console.log(`  ✓ Using "${propName}" for grouping`)
         break
       }
     }
@@ -568,7 +767,12 @@ function Plugin() {
 
   // Group combinations by this property (for both modes)
   if (groupingProperty) {
-    sortedCombinations.forEach(combo => {
+    // Separate valid and invalid combinations
+    const validCombos = sortedCombinations.filter(combo => combo.isValidCombination !== false)
+    const invalidCombos = sortedCombinations.filter(combo => combo.isValidCombination === false)
+    
+    // Group valid combinations by the grouping property
+    validCombos.forEach(combo => {
       const groupValue = combo.properties[groupingProperty]
       const groupKey = groupValue ? String(groupValue) : 'Other'
 
@@ -577,6 +781,11 @@ function Plugin() {
       }
       groupedCombinations[groupKey].push(combo)
     })
+    
+    // Add invalid combinations as a separate group at the end
+    if (invalidCombos.length > 0) {
+      groupedCombinations['__INVALID__'] = invalidCombos
+    }
   }
 
   return (
@@ -587,10 +796,34 @@ function Plugin() {
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
           }
+          
+          .tooltip-wrapper .tooltip {
+            position: absolute;
+            left: calc(100% + 8px);
+            top: 50%;
+            transform: translateY(-50%);
+            background: var(--figma-color-bg-inverse);
+            color: var(--figma-color-text-onbrand);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            white-space: nowrap;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.1s ease;
+            z-index: 1000;
+          }
+          
+          .tooltip-wrapper:hover .tooltip {
+            opacity: 1;
+            transition-delay: 0.1s;
+          }
         `}
+
       </style>
       <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
         {/* Mode Toggle */}
+      {showComponentDataTab && (
       <div style={{ display: 'flex', borderBottom: '1px solid var(--figma-color-border)', flexShrink: 0 }}>
         <div
           onClick={() => handleModeChange('figma-direct')}
@@ -608,23 +841,26 @@ function Plugin() {
         >
           FIGMA CANVAS
         </div>
-        <div
-          onClick={() => handleModeChange('anova')}
-          style={{
-            flex: 1,
-            padding: '12px',
-            textAlign: 'center',
-            cursor: 'pointer',
-            borderBottom: dataSource === 'anova' ? '2px solid var(--figma-color-text-brand)' : '2px solid transparent',
-            color: dataSource === 'anova' ? 'var(--figma-color-text)' : 'var(--figma-color-text-secondary)',
-            fontWeight: dataSource === 'anova' ? 600 : 400,
-            fontSize: '11px',
-            transition: 'all 0.2s ease'
-          }}
-        >
-          COMPONENT DATA
-        </div>
+{showComponentDataTab && (
+          <div
+            onClick={() => handleModeChange('anova')}
+            style={{
+              flex: 1,
+              padding: '12px',
+              textAlign: 'center',
+              cursor: 'pointer',
+              borderBottom: dataSource === 'anova' ? '2px solid var(--figma-color-text-brand)' : '2px solid transparent',
+              color: dataSource === 'anova' ? 'var(--figma-color-text)' : 'var(--figma-color-text-secondary)',
+              fontWeight: dataSource === 'anova' ? 600 : 400,
+              fontSize: '11px',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            COMPONENT DATA
+          </div>
+        )}
       </div>
+      )}
 
       {/* Anova Input Section */}
       {dataSource === 'anova' && (
@@ -692,7 +928,7 @@ function Plugin() {
           {dataSource === 'figma-direct' && (
           <div style={{ display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
         <div 
-          style={{ padding: '12px 12px 8px 12px', minHeight: '40px', cursor: 'pointer', position: 'sticky', top: 0, background: 'var(--figma-color-bg)', zIndex: 1 }}
+          style={{ padding: '12px 12px 4px 12px', minHeight: '40px', cursor: 'pointer', position: 'sticky', top: 0, background: 'var(--figma-color-bg)', zIndex: 1 }}
           onClick={() => setIsPropertiesCollapsed(!isPropertiesCollapsed)}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
@@ -738,15 +974,21 @@ function Plugin() {
           <div style={{ marginBottom: '16px' }}>
             {propertyOrder.map(propName => {
               const prop = allProperties[propName]
-              const isVariant = prop.type === 'VARIANT'
-              const isChecked = expandedProperties[propName] || false
+              // Only treat as variant if it has 3+ values
+              const isVariant = prop.type === 'VARIANT' && prop.values && prop.values.length > 2
+              const isChecked = expandedProperties[propName] || isVariant
 
               // Build the icon element
               let icon
-              if (prop.type === 'BOOLEAN') icon = <IconBoolean16 />
-              else if (prop.type === 'VARIANT') icon = <IconInstance16 />
-              else if (prop.type === 'INSTANCE_SWAP') icon = <IconComponentProperty16 />
-              else icon = <IconBoolean16 />
+              if (prop.type === 'BOOLEAN' || (prop.type === 'VARIANT' && prop.values && prop.values.length === 2)) {
+                icon = <IconBoolean16 />
+              } else if (prop.type === 'VARIANT') {
+                icon = <IconInstance16 />
+              } else if (prop.type === 'INSTANCE_SWAP') {
+                icon = <IconComponentProperty16 />
+              } else {
+                icon = <IconBoolean16 />
+              }
 
               return (
                 <SelectableItem
@@ -785,23 +1027,87 @@ function Plugin() {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
         <>
             <div
-              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0, padding: '12px 12px 8px 12px', minHeight: '40px', position: 'sticky', top: 0, background: 'var(--figma-color-bg)', zIndex: 1 }}
+              style={{ display: 'flex', flexDirection: 'column', gap: '8px', flexShrink: 0, padding: '12px 12px 4px 12px', minHeight: '40px', position: 'sticky', top: 0, background: 'var(--figma-color-bg)', zIndex: 1 }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div style={{
-                  fontFamily: 'var(--text-body-large-strong-font-family)',
-                  fontSize: 'var(--text-body-large-strong-font-size)',
-                  fontWeight: 600,
-                  letterSpacing: 'var(--text-body-large-strong-letter-spacing)',
-                  lineHeight: 'var(--text-body-large-strong-line-height)',
-                  color: 'var(--figma-color-text)'
-                }}>
-                  Preview
-                </div>
+              {/* First Row: Preview heading, count, status, and Select All button */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{
+                    fontFamily: 'var(--text-body-large-strong-font-family)',
+                    fontSize: 'var(--text-body-large-strong-font-size)',
+                    fontWeight: 600,
+                    letterSpacing: 'var(--text-body-large-strong-letter-spacing)',
+                    lineHeight: 'var(--text-body-large-strong-line-height)',
+                    color: 'var(--figma-color-text)'
+                  }}>
+                    Preview
+                  </div>
                 <div style={{ fontSize: '11px', color: 'var(--figma-color-text-tertiary)' }}>·</div>
                 <div style={{ fontSize: '11px', color: 'var(--figma-color-text)' }}>
-                  {Object.values(selectedCombinations).filter(v => v).length} / {previewCombinations.length} selected
+                  {Object.values(selectedCombinations).filter(v => v).length} / {sortedCombinations.filter((c: any) => c.isValidCombination !== false).length} selected
                 </div>
+                
+                {dataSource === 'figma-direct' && componentDataSpec && sortedCombinations.some((c: any) => c.isValidCombination === false) && (
+                  <>
+                    <div style={{ fontSize: '11px', color: 'var(--figma-color-text-tertiary)' }}>·</div>
+                    <div style={{ fontSize: '11px', color: 'var(--figma-color-text-secondary)' }}>
+                      {sortedCombinations.length} total (<span
+                        onClick={() => {
+                          const invalidSection = document.getElementById('invalid-combinations-group')
+                          if (invalidSection) {
+                            invalidSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                          }
+                        }}
+                        style={{
+                          color: 'var(--figma-color-text-brand)',
+                          cursor: 'pointer',
+                          textDecoration: 'underline'
+                        }}
+                        onMouseEnter={(e: any) => e.currentTarget.style.opacity = '0.7'}
+                        onMouseLeave={(e: any) => e.currentTarget.style.opacity = '1'}
+>{sortedCombinations.filter((c: any) => c.isValidCombination === false).length} invalid</span>)
+                    </div>
+                  </>
+                )}
+                
+                {/* Add/Remove Component Data Button - After total count */}
+                {dataSource === 'figma-direct' && componentSets.length > 0 && (
+                  <>
+                    <div style={{ fontSize: '11px', color: 'var(--figma-color-text-tertiary)' }}>·</div>
+                    <div style={{ position: 'relative' }} className="tooltip-wrapper">
+                      <IconButton
+                        onClick={() => {
+                          if (componentDataSpec) {
+                            // Remove component data
+                            setComponentDataInput('')
+                            setComponentDataSpec(null)
+                            setComponentDataError('')
+                          } else {
+                            // Add component data
+                            setIsComponentDataModalOpen(true)
+                          }
+                        }}
+                      >
+                        {componentDataSpec ? (
+                          <div style={{ 
+                            color: 'var(--figma-color-text-danger)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            <IconClose16 />
+                          </div>
+                        ) : (
+                          <IconPlus16 />
+                        )}
+                      </IconButton>
+                      <div className="tooltip">
+                        {componentDataSpec ? 'Remove Component Data' : 'Add Component Data'}
+                      </div>
+                    </div>
+                  </>
+                )}
+                
                 {(waitingForAutoSelect || previewsLoading || previewsError) && dataSource === 'anova' && (
                   <>
                     <div style={{ fontSize: '11px', color: 'var(--figma-color-text-tertiary)' }}>·</div>
@@ -837,9 +1143,71 @@ function Plugin() {
                     </div>
                   </>
                 )}
+                </div>
+                <Checkbox
+                  value={(() => {
+                    const validCombinationKeys = sortedCombinations
+                      .filter((c: any) => c.isValidCombination !== false)
+                      .map(combo => getCombinationKey(combo))
+                    return validCombinationKeys.every(key => selectedCombinations[key])
+                  })()}
+                  onValueChange={handleSelectAll}
+                >
+                  <Text>Select All</Text>
+                </Checkbox>
+              </div>
+
+              {/* Second Row: Filtering and Sorting Controls */}
+              {previewCombinations.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {/* Grouping Property Selector - Show when there are multiple VARIANT properties */}
+                  {(() => {
+                  let groupableProps: string[] = []
+                  
+                  if (dataSource === 'anova' && anovaSpec) {
+                    // Anova mode: get VARIANT properties from spec
+                    groupableProps = Object.entries(anovaSpec.props)
+                      .filter(([propName, prop]) => prop.enum && prop.enum.length > 0)
+                      .map(([propName]) => propName)
+                  } else if (dataSource === 'figma-direct' && propertyOrder.length > 0) {
+                    // Figma Direct mode: get VARIANT properties with 3+ values from allProperties
+                    groupableProps = propertyOrder.filter(propName => {
+                      const prop = allProperties[propName]
+                      return prop && prop.type === 'VARIANT' && prop.values && prop.values.length > 2
+                    })
+                  }
+
+                  // Only show if there are 2+ groupable properties
+                  if (groupableProps.length < 2) return null
+
+                  const groupOptions: DropdownOption[] = groupableProps.map(propName => ({
+                    value: propName,
+                    text: `Group by ${propName}`
+                  }))
+
+                  // Determine current grouping property
+                  let currentGrouping = selectedGroupingProperty
+                  if (!currentGrouping && groupableProps.length > 0) {
+                    currentGrouping = groupableProps[0] // Default to first
+                  }
+
+                  return (
+                    <div style={{ minWidth: '140px' }}>
+                        <Dropdown
+                          value={currentGrouping || ''}
+                          options={groupOptions}
+                          onChange={(e) => setSelectedGroupingProperty(e.currentTarget.value)}
+                          style={{
+                            fontSize: '11px',
+                            fontWeight: 500
+                          }}
+                        />
+                      </div>
+                  )
+                })()}
                 
                 {/* Filter Dropdowns - Show for both modes when combinations exist */}
-                {previewCombinations.length > 0 && (() => {
+                {(() => {
                   let filterableProps: [string, any][] = []
                   
                   if (dataSource === 'anova' && anovaSpec) {
@@ -848,11 +1216,11 @@ function Plugin() {
                       return prop.enum && prop.enum.length > 0
                     })
                   } else if (dataSource === 'figma-direct' && propertyOrder.length > 0) {
-                    // Figma Direct mode: get VARIANT properties from allProperties
+                    // Figma Direct mode: get VARIANT properties with 3+ values from allProperties
                     filterableProps = propertyOrder
                       .filter(propName => {
                         const prop = allProperties[propName]
-                        return prop && prop.type === 'VARIANT'
+                        return prop && prop.type === 'VARIANT' && prop.values && prop.values.length > 2
                       })
                       .map(propName => [propName, allProperties[propName]])
                   }
@@ -861,7 +1229,6 @@ function Plugin() {
 
                   return (
                     <>
-                      <div style={{ fontSize: '11px', color: 'var(--figma-color-text-tertiary)' }}>·</div>
                       {filterableProps.map(([propName, prop]) => {
                         const uniqueValues = getUniquePropertyValues(propName)
                         const currentFilter = activeFilters[propName]
@@ -889,10 +1256,9 @@ function Plugin() {
                     </>
                   )
                 })()}
-              </div>
-              <Button secondary onClick={handleSelectAll}>
-                {Object.values(selectedCombinations).every(v => v) ? 'Deselect All' : 'Select All'}
-              </Button>
+
+</div>
+              )}
             </div>
 
             <div style={{ flex: 1, overflowY: 'auto', overflowX: 'auto', padding: '0 12px' }}>
@@ -905,13 +1271,20 @@ function Plugin() {
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   {Object.keys(groupedCombinations).length > 0 ? (
                     Object.entries(groupedCombinations).map(([groupKey, groupCombos]) => {
-                      const isCollapsed = collapsedGroups[groupKey] || false
+                      // Default invalid group to collapsed if not explicitly set
+                      const isCollapsed = groupKey === '__INVALID__' 
+                        ? (collapsedGroups[groupKey] !== undefined ? collapsedGroups[groupKey] : true)
+                        : (collapsedGroups[groupKey] || false)
                       const groupSelectedCount = groupCombos.filter(combo =>
                         selectedCombinations[getCombinationKey(combo)]
                       ).length
 
                       return (
-                        <div key={groupKey} style={{ marginBottom: isCollapsed ? '8px' : '16px' }}>
+                        <div 
+                          key={groupKey} 
+                          id={groupKey === '__INVALID__' ? 'invalid-combinations-group' : undefined}
+                          style={{ marginBottom: isCollapsed ? '8px' : '16px' }}
+                        >
                           {/* Custom Minimal Disclosure Header */}
                           <div 
                             style={{ 
@@ -938,8 +1311,8 @@ function Plugin() {
                             </div>
                             
                             {/* Title */}
-                            <Text style={{ fontWeight: 500 }}>
-                              {groupingProperty}: {groupKey}
+                            <Text style={{ fontWeight: 500, color: groupKey === '__INVALID__' ? 'var(--figma-color-text-secondary)' : undefined }}>
+                              {groupKey === '__INVALID__' ? 'Invalid Combinations' : `${groupingProperty}: ${groupKey}`}
                             </Text>
                             
                             {/* Count */}
@@ -947,19 +1320,121 @@ function Plugin() {
                               ({groupSelectedCount} / {groupCombos.length})
                             </Muted>
                             
-                            {/* Select All Button */}
-                            <div style={{ marginLeft: 'auto' }}>
-                              <Button
-                                secondary
-                                onClick={(e: any) => {
-                                  e.stopPropagation()
-                                  handleGroupSelectAll(groupCombos)
-                                }}
-                              >
-                                {groupSelectedCount === groupCombos.length ? `Deselect ${groupKey}` : `Select ${groupKey}`}
-                              </Button>
-                            </div>
+                            {/* Select All Checkbox */}
+                            {groupKey !== '__INVALID__' && (
+                              <div style={{ marginLeft: 'auto' }}>
+                                <Checkbox
+                                  value={groupSelectedCount === groupCombos.length}
+                                  onValueChange={(e: any) => {
+                                    handleGroupSelectAll(groupCombos)
+                                  }}
+                                  onClick={(e: any) => e.stopPropagation()}
+                                >
+                                  <Text>Select {groupKey}</Text>
+                                </Checkbox>
+                              </div>
+                            )}
                           </div>
+                          
+                          {/* Invalid Combinations Summary - Always show for invalid group */}
+                          {groupKey === '__INVALID__' && groupCombos.length > 0 && (
+                              <div style={{
+                                padding: '12px',
+                                background: 'var(--figma-color-bg-secondary)',
+                                borderRadius: '6px',
+                                border: '1px solid var(--figma-color-border)',
+                                marginBottom: '4px'
+                              }}>
+                                <div style={{
+                                  fontSize: '11px',
+                                  fontWeight: 600,
+                                  color: 'var(--figma-color-text)',
+                                  marginBottom: '8px'
+                                }}>
+                                  Why these combinations are invalid:
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                  {(() => {
+                                    // Group invalid combinations by their property signatures
+                                    const invalidPatterns = new Map<string, { parts: string[], count: number }>()
+                                    
+                                    groupCombos.forEach(combo => {
+                                      // Create a readable signature from ALL properties
+                                      const propParts: string[] = []
+                                      
+                                      Object.entries(combo.properties).forEach(([key, value]) => {
+                                        const strValue = String(value).toLowerCase()
+                                        
+                                        // For boolean properties, only show if true
+                                        if (strValue === 'true') {
+                                          propParts.push(key)
+                                        } else if (strValue !== 'false') {
+                                          // For non-boolean (VARIANT) properties, show key=value
+                                          propParts.push(`${key}=${value}`)
+                                        }
+                                      })
+                                      
+                                      const sortedParts = propParts.sort()
+                                      const signature = sortedParts.join(' + ')
+                                      
+                                      if (signature) {
+                                        const existing = invalidPatterns.get(signature)
+                                        if (existing) {
+                                          existing.count++
+                                        } else {
+                                          invalidPatterns.set(signature, { parts: sortedParts, count: 1 })
+                                        }
+                                      }
+                                    })
+                                    
+                                    return Array.from(invalidPatterns.entries()).map(([pattern, { parts, count }]) => (
+                                      <div key={pattern} style={{
+                                        fontSize: '11px',
+                                        color: 'var(--figma-color-text-secondary)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '6px'
+                                      }}>
+                                        <span style={{
+                                          width: '4px',
+                                          height: '4px',
+                                          borderRadius: '50%',
+                                          background: 'var(--figma-color-text-tertiary)',
+                                          flexShrink: 0
+                                        }} />
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+                                          {parts.map((part, idx) => (
+                                            <span key={idx}>
+                                              <span style={{
+                                                padding: '2px 6px',
+                                                borderRadius: '3px',
+                                                background: 'var(--figma-color-bg-tertiary)',
+                                                fontSize: '10px',
+                                                fontFamily: 'monospace',
+                                                color: 'var(--figma-color-text)',
+                                                whiteSpace: 'nowrap'
+                                              }}>
+                                                {part}
+                                              </span>
+                                              {idx < parts.length - 1 && (
+                                                <span style={{ 
+                                                  margin: '0 2px',
+                                                  color: 'var(--figma-color-text-tertiary)',
+                                                  fontSize: '10px'
+                                                }}>+</span>
+                                              )}
+                                            </span>
+                                          ))}
+                                        </div>
+                                        <span style={{ color: 'var(--figma-color-text-tertiary)' }}>
+                                          ({count} variant{count > 1 ? 's' : ''})
+                                        </span>
+                                      </div>
+                                    ))
+                                  })()}
+                                </div>
+                              </div>
+                            )}
                           
                           {/* Group Items */}
                           {!isCollapsed && (
@@ -969,22 +1444,15 @@ function Plugin() {
                     const isSelected = selectedCombinations[key] || false
                     const isHovered = hoveredRow === key
                     const previewImage = previews[combo.variantName]
+                    const isInvalid = combo.isValidCombination === false
 
                     // Calculate global index in sortedCombinations
                     const globalIndex = sortedCombinations.findIndex(c => getCombinationKey(c) === key)
 
-                    // Debug logging for first few items
-                    if (localIndex < 3) {
-                      console.log(`Combo ${localIndex}:`, {
-                        variantName: combo.variantName,
-                        hasPreview: !!previewImage,
-                        previewKeys: Object.keys(previews).slice(0, 5),
-                        previewsLoading
-                      })
-                    }
-
                     let bgColor = 'transparent'
-                    if (isSelected) {
+                    if (isInvalid) {
+                      bgColor = 'var(--figma-color-bg-disabled)'
+                    } else if (isSelected) {
                       bgColor = 'var(--figma-color-bg-selected)'
                     } else if (isHovered) {
                       bgColor = 'var(--figma-color-bg-hover)'
@@ -994,18 +1462,24 @@ function Plugin() {
                       <div
                         key={localIndex}
                         style={{
-                          cursor: 'pointer',
+                          cursor: isInvalid ? 'not-allowed' : 'pointer',
                           background: bgColor,
                           borderRadius: '6px',
                           padding: '12px',
-                          border: '1px solid var(--figma-color-border)',
+                          border: isInvalid 
+                            ? '1px dashed var(--figma-color-border)' 
+                            : isSelected 
+                              ? '1px solid var(--figma-color-text-brand)' 
+                              : '1px solid transparent',
                           display: 'flex',
                           gap: '12px',
-                          alignItems: 'flex-start'
+                          alignItems: 'flex-start',
+                          opacity: isInvalid ? 0.5 : 1,
+                          position: 'relative'
                         }}
-                        onMouseEnter={() => setHoveredRow(key)}
+                        onMouseEnter={() => !isInvalid && setHoveredRow(key)}
                         onMouseLeave={() => setHoveredRow(null)}
-                        onClick={(e: any) => handleCombinationToggle(key, globalIndex, e.shiftKey)}
+                        onClick={(e: any) => !isInvalid && handleCombinationToggle(key, globalIndex, e.shiftKey)}
                       >
                         {/* Thumbnail */}
                         <div style={{
@@ -1038,7 +1512,29 @@ function Plugin() {
                         </div>
 
                         {/* Properties */}
-                        <div style={{ flex: 1, minWidth: 0, display: 'flex', gap: '12px' }}>
+                        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          {/* Invalid Combination Badge */}
+                          {isInvalid && (
+                            <div style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              padding: '2px 6px',
+                              borderRadius: '3px',
+                              background: 'var(--figma-color-bg-tertiary)',
+                              alignSelf: 'flex-start'
+                            }}>
+                              <span style={{
+                                fontSize: '10px',
+                                fontWeight: 500,
+                                color: 'var(--figma-color-text-tertiary)'
+                              }}>
+                                Invalid
+                              </span>
+                            </div>
+                          )}
+                          
+                          <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
                           {combo.properties && Object.keys(combo.properties).length > 0 && (() => {
                             // Separate boolean and variant properties
                             const boolProps: [string, any][] = []
@@ -1133,7 +1629,44 @@ function Plugin() {
                               </>
                             )
                           })()}
+                          </div>
+                          
                         </div>
+                        
+                        {/* Select Across Groups Button - Centered absolutely, only show on hover */}
+                        {!isInvalid && isHovered && groupingProperty && Object.keys(groupedCombinations).length > 1 && (
+                          <div style={{
+                            position: 'absolute',
+                            top: '50%',
+                            left: '50%',
+                            transform: 'translate(-50%, -50%)',
+                            pointerEvents: 'none'
+                          }}>
+                            <Button
+                              secondary
+                              onClick={(e: any) => {
+                                e.stopPropagation()
+                                handleSelectAcrossGroups(combo, groupingProperty)
+                              }}
+                              onMouseEnter={(e: any) => {
+                                e.currentTarget.style.background = 'var(--figma-color-bg-hover)'
+                                e.currentTarget.style.borderColor = 'var(--figma-color-text-brand)'
+                              }}
+                              onMouseLeave={(e: any) => {
+                                e.currentTarget.style.background = ''
+                                e.currentTarget.style.borderColor = ''
+                              }}
+                              style={{ 
+                                fontSize: '11px', 
+                                padding: '4px 8px',
+                                pointerEvents: 'auto',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              Select in All Groups
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     )
                   })}
@@ -1169,6 +1702,49 @@ function Plugin() {
         </Button>
       </div>
       </div>
+
+      {/* Component Data Modal */}
+      {isComponentDataModalOpen && (
+        <Modal
+          open={isComponentDataModalOpen}
+          title="Add Component Data"
+          onCloseButtonClick={() => setIsComponentDataModalOpen(false)}
+        >
+          <div style={{ padding: '12px' }}>
+            <div style={{ marginBottom: '12px' }}>
+              <Muted>Paste component data (YAML) to filter variants to only valid combinations</Muted>
+            </div>
+            <TextboxMultiline
+              value={componentDataInput}
+              onValueInput={setComponentDataInput}
+              placeholder="Paste Anova YAML data here..."
+              rows={12}
+            />
+            {componentDataError && (
+              <div style={{ marginTop: '8px', color: 'var(--figma-color-text-danger)', fontSize: '11px' }}>
+                {componentDataError}
+              </div>
+            )}
+            {componentDataSpec && (
+              <div style={{ marginTop: '8px', color: 'var(--figma-color-text-success)', fontSize: '11px' }}>
+                ✓ Loaded: {componentDataSpec.title}
+              </div>
+            )}
+            <VerticalSpace space="medium" />
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <Button secondary onClick={() => setIsComponentDataModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={() => {
+                handleComponentDataParse()
+                setIsComponentDataModalOpen(false)
+              }}>
+                Apply Filter
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </>
   )
 }
