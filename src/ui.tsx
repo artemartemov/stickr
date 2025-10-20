@@ -838,11 +838,24 @@ function Plugin() {
                   </>
                 )}
                 
-                {/* Filter Dropdowns - Only show in Anova mode when spec is loaded */}
-                {dataSource === 'anova' && anovaSpec && previewCombinations.length > 0 && (() => {
-                  const filterableProps = Object.entries(anovaSpec.props).filter(([propName, prop]) => {
-                    return prop.enum && prop.enum.length > 0
-                  })
+                {/* Filter Dropdowns - Show for both modes when combinations exist */}
+                {previewCombinations.length > 0 && (() => {
+                  let filterableProps: [string, any][] = []
+                  
+                  if (dataSource === 'anova' && anovaSpec) {
+                    // Anova mode: get VARIANT properties from spec
+                    filterableProps = Object.entries(anovaSpec.props).filter(([propName, prop]) => {
+                      return prop.enum && prop.enum.length > 0
+                    })
+                  } else if (dataSource === 'figma-direct' && propertyOrder.length > 0) {
+                    // Figma Direct mode: get VARIANT properties from allProperties
+                    filterableProps = propertyOrder
+                      .filter(propName => {
+                        const prop = allProperties[propName]
+                        return prop && prop.type === 'VARIANT'
+                      })
+                      .map(propName => [propName, allProperties[propName]])
+                  }
 
                   if (filterableProps.length === 0) return null
 
