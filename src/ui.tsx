@@ -779,7 +779,7 @@ function Plugin() {
       </div>
           )}
 
-      {dataSource === 'figma-direct' && <VerticalSpace space="medium" />}
+
 
       {/* Preview Section - Takes remaining space */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
