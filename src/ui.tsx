@@ -131,10 +131,16 @@ function Plugin() {
 
       combos.forEach(combo => {
         const key = `${compSet.id}:${JSON.stringify(combo)}`
+        const variantName = Object.entries(combo)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([k, v]) => `${k}=${v}`)
+          .join(', ')
+        
         combinations.push({
           componentSetId: compSet.id,
           componentSetName: compSet.name,
-          properties: combo
+          properties: combo,
+          variantName: variantName
         })
         selected[key] = false // Default unchecked
       })
@@ -142,6 +148,15 @@ function Plugin() {
 
     setPreviewCombinations(combinations)
     setSelectedCombinations(selected)
+    
+    // Request preview generation for Figma Direct mode
+    if (combinations.length > 0) {
+      console.log('Requesting previews for Figma Direct combinations:', combinations.length)
+      setPreviewsLoading(true)
+      setPreviewsError(null)
+      
+      emit('GENERATE_PREVIEWS', { combinations })
+    }
   }, [componentSets, expandedProperties, dataSource])
 
   function generateCombinations(properties: any, propsToExpand: string[]): any[] {
@@ -531,16 +546,28 @@ function Plugin() {
   const groupedCombinations: { [groupKey: string]: any[] } = {}
   let groupingProperty = ''
 
+  // Determine grouping property based on data source
   if (dataSource === 'anova' && anovaSpec) {
-    // Find the first VARIANT property as the grouping property
+    // Anova mode: Find the first VARIANT property
     for (const [propName, prop] of Object.entries(anovaSpec.props)) {
       if (prop.enum && prop.enum.length > 0) {
         groupingProperty = propName
         break
       }
     }
+  } else if (dataSource === 'figma-direct' && propertyOrder.length > 0) {
+    // Figma Direct mode: Use the first VARIANT property
+    for (const propName of propertyOrder) {
+      const prop = allProperties[propName]
+      if (prop && prop.type === 'VARIANT') {
+        groupingProperty = propName
+        break
+      }
+    }
+  }
 
-    // Group combinations by this property
+  // Group combinations by this property (for both modes)
+  if (groupingProperty) {
     sortedCombinations.forEach(combo => {
       const groupValue = combo.properties[groupingProperty]
       const groupKey = groupValue ? String(groupValue) : 'Other'
@@ -860,8 +887,8 @@ function Plugin() {
                 <div style={{ textAlign: 'center', paddingTop: '40px' }}>
                   <Muted>No combinations to show</Muted>
                 </div>
-              ) : dataSource === 'anova' ? (
-                /* Anova Mode - Grouped list view with thumbnails */
+              ) : (
+                /* Unified Grouped list view with thumbnails (both modes) */
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   {Object.keys(groupedCombinations).length > 0 ? (
                     Object.entries(groupedCombinations).map(([groupKey, groupCombos]) => {
@@ -1110,99 +1137,6 @@ function Plugin() {
                     })
                   )}
                 </div>
-              ) : (
-                /* Figma Direct Mode - Table view */
-            <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: '11px' }}>
-              <thead>
-                <tr style={{ height: '40px' }}>
-                  {propertyOrder.map((prop, index) => {
-                    const isActive = sortColumn === prop
-                    const isAscending = isActive && sortDirection === 'asc'
-                    const isFirstColumn = index === 0
-
-                    return (
-                      <th
-                        key={prop}
-                        style={{
-                          padding: isFirstColumn ? '8px 8px 8px 0' : '8px',
-                          textAlign: 'left',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          userSelect: 'none',
-                          width: prop === 'Type' ? '30%' : 'auto'
-                        }}
-                        onClick={() => handleSort(prop)}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <Text>{prop}</Text>
-                          <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            opacity: isActive ? 1 : 0.3,
-                            transform: isAscending ? 'rotate(180deg)' : 'rotate(0deg)',
-                            transition: 'transform 0.2s ease'
-                          }}>
-                            <IconChevronDown16 />
-                          </div>
-                        </div>
-                      </th>
-                    )
-                  })}
-                </tr>
-              </thead>
-              <tbody>
-                {sortedCombinations.map((combo, index) => {
-                  const key = getCombinationKey(combo)
-                  const isSelected = selectedCombinations[key] || false
-                  const isHovered = hoveredRow === key
-                  
-                  let bgColor = 'transparent'
-                  if (isSelected) {
-                    bgColor = 'var(--figma-color-bg-selected)'
-                  } else if (isHovered) {
-                    bgColor = 'var(--figma-color-bg-hover)'
-                  }
-                  
-                  return (
-                    <tr
-                      key={index}
-                      style={{
-                        cursor: 'pointer',
-                        height: '40px'
-                      }}
-                      onMouseEnter={() => setHoveredRow(key)}
-                      onMouseLeave={() => setHoveredRow(null)}
-                      onClick={(e: any) => handleCombinationToggle(key, index, e.shiftKey)}
-                    >
-                      <td colSpan={propertyOrder.length} style={{ padding: 0 }}>
-                        <div style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          height: '40px',
-                          background: bgColor,
-                          borderRadius: '6px',
-                          padding: '0 8px',
-                          marginBottom: '8px'
-                        }}>
-                          {propertyOrder.map((propName, colIndex) => (
-                            <div key={propName} style={{ 
-                              flex: propName === 'Type' ? '0 0 30%' : '1',
-                              padding: colIndex === 0 ? '0 8px 0 0' : '0 8px'
-                            }}>
-                              <Text>
-                                {combo.properties[propName] !== undefined
-                                  ? formatPropertyValue(combo.properties[propName])
-                                  : '—'}
-                              </Text>
-                            </div>
-                          ))}
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
               )}
             </div>
           </>
