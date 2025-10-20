@@ -11,20 +11,61 @@ import {
   IconInstance16,
   IconComponentProperty16,
   IconChevronDown16,
-  Muted
+  Muted,
+  LoadingIndicator,
+  Dropdown,
+  DropdownOption,
+  TextboxMultiline,
+  Modal,
+  IconButton,
+  IconPlus16,
+  IconClose16
 } from '@create-figma-plugin/ui'
 import { h, Fragment } from 'preact'
 import { useState, useEffect } from 'preact/hooks'
+import * as yaml from 'js-yaml'
+import type { AnovaSpec } from './types/anova'
+import { filterValidVariants } from './types/anova'
+
+type DataSource = 'figma-direct' | 'anova'
 
 function Plugin() {
+  // Data source mode
+  const [dataSource, setDataSource] = useState<DataSource>('figma-direct')
+  const [showComponentDataTab, setShowComponentDataTab] = useState(false)
+
+  // Figma Direct mode state
   const [componentSets, setComponentSets] = useState<any[]>([])
   const [expandedProperties, setExpandedProperties] = useState<{ [key: string]: boolean }>({})
+
+  // Anova mode state
+  const [anovaInput, setAnovaInput] = useState<string>('')
+  const [anovaSpec, setAnovaSpec] = useState<AnovaSpec | null>(null)
+  const [anovaError, setAnovaError] = useState<string>('')
+  const [waitingForAutoSelect, setWaitingForAutoSelect] = useState(false)
+
+  // Preview state
+  const [previews, setPreviews] = useState<{ [variantName: string]: string }>({})
+  const [previewsLoading, setPreviewsLoading] = useState(false)
+  const [previewsError, setPreviewsError] = useState<string | null>(null)
+
+  // Shared state
   const [previewCombinations, setPreviewCombinations] = useState<any[]>([])
   const [selectedCombinations, setSelectedCombinations] = useState<{ [key: string]: boolean }>({})
   const [sortColumn, setSortColumn] = useState<string | null>(null)
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
-  const [isPropertiesCollapsed, setIsPropertiesCollapsed] = useState(false)
+  const [isPropertiesCollapsed, setIsPropertiesCollapsed] = useState(true)
   const [hoveredRow, setHoveredRow] = useState<string | null>(null)
+  const [collapsedGroups, setCollapsedGroups] = useState<{ [key: string]: boolean }>({})
+  const [activeFilters, setActiveFilters] = useState<{ [propName: string]: string | null }>({})
+  const [lastClickedIndex, setLastClickedIndex] = useState<number | null>(null)
+
+  // Component Data filter (for Figma Direct mode)
+  const [componentDataInput, setComponentDataInput] = useState<string>('')
+  const [componentDataSpec, setComponentDataSpec] = useState<AnovaSpec | null>(null)
+  const [componentDataError, setComponentDataError] = useState<string>('')
+  const [isComponentDataModalOpen, setIsComponentDataModalOpen] = useState(false)
+const [selectedGroupingProperty, setSelectedGroupingProperty] = useState<string | null>(null)
 
   // Listen for initial data from backend - set up handler immediately
   on('INIT_DATA', (data: any[]) => {
@@ -43,8 +84,36 @@ function Plugin() {
     setExpandedProperties(expanded)
   })
 
-  // Generate preview when properties change
+  // Listen for preview generation responses
+  on('PREVIEWS_READY', (data: { [variantName: string]: string }) => {
+    setPreviews(data)
+    setPreviewsLoading(false)
+    setPreviewsError(null)
+  })
+
+  on('PREVIEWS_ERROR', (data: { error: string }) => {
+    setPreviewsError(data.error)
+    setPreviewsLoading(false)
+  })
+
+  // Auto-continue import after component is selected
   useEffect(() => {
+    if (waitingForAutoSelect && componentSets.length > 0 && anovaSpec && previewCombinations.length > 0) {
+      setWaitingForAutoSelect(false)
+      // Request previews now that component is selected
+      // Add small delay to ensure selection is fully registered in Figma
+      setTimeout(() => {
+        setPreviewsLoading(true)
+        setPreviewsError(null)
+        emit('GENERATE_PREVIEWS', { combinations: previewCombinations })
+      }, 100)
+    }
+  }, [componentSets, waitingForAutoSelect, anovaSpec, previewCombinations])
+
+  // Generate preview when properties change (only for Figma Direct mode)
+  useEffect(() => {
+    // Skip if in Anova mode - Anova handles its own combinations
+    if (dataSource === 'anova') return
     if (componentSets.length === 0) return
 
     const combinations: any[] = []
@@ -61,10 +130,16 @@ function Plugin() {
 
       combos.forEach(combo => {
         const key = `${compSet.id}:${JSON.stringify(combo)}`
+        const variantName = Object.entries(combo)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([k, v]) => `${k}=${v}`)
+          .join(', ')
+        
         combinations.push({
           componentSetId: compSet.id,
           componentSetName: compSet.name,
-          properties: combo
+          properties: combo,
+          variantName: variantName
         })
         selected[key] = false // Default unchecked
       })
@@ -72,7 +147,28 @@ function Plugin() {
 
     setPreviewCombinations(combinations)
     setSelectedCombinations(selected)
-  }, [componentSets, expandedProperties])
+    
+    // Request preview generation for Figma Direct mode
+    if (combinations.length > 0) {
+      setPreviewsLoading(true)
+      setPreviewsError(null)
+      
+      emit('GENERATE_PREVIEWS', { combinations })
+    }
+  }, [componentSets, expandedProperties, dataSource])
+
+  // Keyboard shortcut listener for Ctrl+D to toggle Component Data tab
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+        e.preventDefault()
+        setShowComponentDataTab(prev => !prev)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   function generateCombinations(properties: any, propsToExpand: string[]): any[] {
     if (propsToExpand.length === 0) return [{}]
@@ -98,6 +194,29 @@ function Plugin() {
     return result
   }
 
+  function handleComponentDataParse() {
+    if (!componentDataInput.trim()) {
+      setComponentDataSpec(null)
+      setComponentDataError('')
+      return
+    }
+
+    try {
+      const parsed = yaml.load(componentDataInput) as AnovaSpec
+
+      // Validate basic structure
+      if (!parsed.title || !parsed.props || !parsed.variants) {
+        throw new Error('Invalid component data structure. Expected title, props, and variants.')
+      }
+
+      setComponentDataSpec(parsed)
+      setComponentDataError('')
+    } catch (err) {
+      setComponentDataError(err instanceof Error ? err.message : 'Failed to parse YAML')
+      setComponentDataSpec(null)
+    }
+  }
+
   function handlePropertyToggle(propName: string) {
     setExpandedProperties(prev => ({
       ...prev,
@@ -105,33 +224,133 @@ function Plugin() {
     }))
   }
 
-  function handleCombinationToggle(key: string) {
-    setSelectedCombinations(prev => ({
-      ...prev,
-      [key]: !prev[key]
-    }))
+  function handleCombinationToggle(key: string, index: number, isShiftClick: boolean = false) {
+    if (isShiftClick && lastClickedIndex !== null) {
+      // Shift-click: select range
+      const start = Math.min(lastClickedIndex, index)
+      const end = Math.max(lastClickedIndex, index)
+
+      // Get the visible combinations (after filtering/sorting/grouping)
+      const visibleCombinations = sortedCombinations.slice(start, end + 1)
+
+      const newState = { ...selectedCombinations }
+      visibleCombinations.forEach(combo => {
+        const comboKey = getCombinationKey(combo)
+        newState[comboKey] = true // Always select on shift-click
+      })
+
+      setSelectedCombinations(newState)
+    } else {
+      // Normal click: toggle single item
+      setSelectedCombinations(prev => ({
+        ...prev,
+        [key]: !prev[key]
+      }))
+    }
+
+    setLastClickedIndex(index)
+  }
+
+  function getCombinationKey(combo: any): string {
+    if (dataSource === 'anova') {
+      return `anova:${combo.variantName}`
+    }
+    return `${combo.componentSetId}:${JSON.stringify(combo.properties)}`
   }
 
   function handleSelectAll() {
-    const allChecked = Object.values(selectedCombinations).every(v => v)
-    const newState: { [key: string]: boolean } = {}
-
-    for (const key in selectedCombinations) {
-      newState[key] = !allChecked
-    }
+    // Only select valid combinations (exclude invalid ones)
+    const validCombinationKeys = sortedCombinations
+      .filter((c: any) => c.isValidCombination !== false)
+      .map(combo => getCombinationKey(combo))
+    
+    const allValidChecked = validCombinationKeys.every(key => selectedCombinations[key])
+    const newState = { ...selectedCombinations }
+    
+    // Toggle only valid combinations
+    validCombinationKeys.forEach(key => {
+      newState[key] = !allValidChecked
+    })
 
     setSelectedCombinations(newState)
   }
 
+  function handleGroupToggle(groupKey: string) {
+    setCollapsedGroups(prev => ({
+      ...prev,
+      [groupKey]: !prev[groupKey]
+    }))
+  }
+
+  function handleGroupSelectAll(groupCombos: any[]) {
+    const groupKeys = groupCombos.map(combo => getCombinationKey(combo))
+    const allSelected = groupKeys.every(key => selectedCombinations[key])
+
+    const newState = { ...selectedCombinations }
+    groupKeys.forEach(key => {
+      newState[key] = !allSelected
+    })
+
+    setSelectedCombinations(newState)
+  }
+
+  function handleSelectAcrossGroups(combo: any, currentGroupingProperty: string) {
+    // Find all combinations that match the same properties except the grouping property
+    const matchingCombos = sortedCombinations.filter((c: any) => {
+      // Skip invalid combinations
+      if (c.isValidCombination === false) return false
+      
+      // Compare all properties except the grouping property
+      for (const propName in combo.properties) {
+        if (propName === currentGroupingProperty) continue // Skip the grouping property
+        if (c.properties[propName] !== combo.properties[propName]) {
+          return false
+        }
+      }
+      return true
+    })
+
+    const newState = { ...selectedCombinations }
+    matchingCombos.forEach(matchingCombo => {
+      const key = getCombinationKey(matchingCombo)
+      newState[key] = true
+    })
+
+    setSelectedCombinations(newState)
+  }
+
+  function handleFilterChange(propName: string, value: string | null) {
+    setActiveFilters(prev => ({
+      ...prev,
+      [propName]: value
+    }))
+  }
+
+  function handleClearFilters() {
+    setActiveFilters({})
+  }
+
+  function getUniquePropertyValues(propName: string): string[] {
+    const uniqueValues = new Set<string>()
+    previewCombinations.forEach(combo => {
+      if (combo.properties[propName] !== undefined) {
+        uniqueValues.add(String(combo.properties[propName]))
+      }
+    })
+    return Array.from(uniqueValues).sort()
+  }
+
   function handleGenerate() {
-    const selected = previewCombinations.filter((_, index) => {
-      const key = `${_.componentSetId}:${JSON.stringify(_.properties)}`
+    const selected = previewCombinations.filter((combo) => {
+      const key = getCombinationKey(combo)
       return selectedCombinations[key]
     })
 
     emit('GENERATE_STICKER_SHEET', {
+      dataSource: dataSource,
       selectedCombinations: selected,
-      includeLightDark: true
+      includeLightDark: true,
+      anovaComponentName: anovaSpec?.title
     })
   }
 
@@ -150,6 +369,200 @@ function Plugin() {
       // New column, default to ascending
       setSortColumn(columnName)
       setSortDirection('asc')
+    }
+  }
+
+  function handleModeChange(newMode: DataSource) {
+    setDataSource(newMode)
+    // Don't clear any data - just switch the view
+    // The data will remain available when switching back
+  }
+
+  function generateAnovaCombinations(spec: AnovaSpec, requestPreviews: boolean = true) {
+    try {
+      // Get base valid variants (filters out invalid ones)
+      const validVariants = filterValidVariants(spec)
+
+      // Collect properties that are already defined in variant configurations
+      const variantConfiguredProps = new Set<string>()
+      
+      if (spec.default.configuration) {
+        Object.keys(spec.default.configuration).forEach(key => variantConfiguredProps.add(key))
+      }
+      for (const variant of spec.variants) {
+        if (variant.configuration) {
+          Object.keys(variant.configuration).forEach(key => variantConfiguredProps.add(key))
+        }
+      }
+      
+      // Only expand boolean properties that are NOT already in variant configurations
+      // These are instance-level properties like hasChevron, hasLeadingIcon, etc.
+      const booleanProps: string[] = []
+      for (const [propName, prop] of Object.entries(spec.props)) {
+        if (prop.type === 'boolean' && !variantConfiguredProps.has(propName)) {
+          booleanProps.push(propName)
+        }
+      }
+
+      // Generate all combinations of boolean values
+      const generateBooleanCombinations = (props: string[]): Record<string, boolean>[] => {
+        if (props.length === 0) return [{}]
+
+        const result: Record<string, boolean>[] = []
+        const totalCombos = Math.pow(2, props.length)
+
+        for (let i = 0; i < totalCombos; i++) {
+          const combo: Record<string, boolean> = {}
+          for (let j = 0; j < props.length; j++) {
+            combo[props[j]] = Boolean((i >> j) & 1)
+          }
+          result.push(combo)
+        }
+
+        return result
+      }
+
+      const booleanCombos = generateBooleanCombinations(booleanProps)
+
+      // Generate full combinations: base variants × boolean combinations
+      const combinations: any[] = []
+      const selected: { [key: string]: boolean } = {}
+
+      for (const variant of validVariants) {
+        // Find the matching variant spec to check element availability
+        const variantSpec = variant.name === (spec.default.name || 'default')
+          ? spec.default
+          : spec.variants.find(v => v.name === variant.name)
+
+        for (const boolCombo of booleanCombos) {
+          // Check if this boolean combination is valid for this variant
+          let isValidCombo = true
+
+          if (variantSpec) {
+            // Check each boolean prop
+            for (const [boolProp, boolValue] of Object.entries(boolCombo)) {
+              // Find elements controlled by this boolean in the default
+              const controlledElements = Object.entries(spec.default.elements || {}).filter(([elemName, elem]) => {
+                return elem.propReferences?.visible?.$ref === `#/props/${boolProp}`
+              })
+
+              // If boolean is true, check if the controlled elements exist in this variant
+              if (boolValue === true && controlledElements.length > 0) {
+                for (const [elemName] of controlledElements) {
+                  const variantElem = variantSpec.elements?.[elemName]
+                  if (variantElem?.propReferences?.visible === null) {
+                    isValidCombo = false
+                    break
+                  }
+
+                  const defaultElem = spec.default.elements?.[elemName]
+                  const parentName = defaultElem?.parent
+
+                  if (parentName) {
+                    const variantParent = variantSpec.elements?.[parentName]
+                    if (variantParent?.children) {
+                      if (!variantParent.children.includes(elemName)) {
+                        isValidCombo = false
+                        break
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+
+          if (isValidCombo) {
+            const fullConfig = { ...variant.configuration, ...boolCombo }
+
+            // Check if this combination matches any invalid configuration
+            const matchesInvalidConfig = spec.invalidConfigurations.some(invalidConfig => {
+              return Object.keys(invalidConfig).every(key => {
+                return fullConfig[key] === invalidConfig[key]
+              })
+            })
+
+            if (matchesInvalidConfig) {
+              continue
+            }
+
+            const configStr = Object.entries(fullConfig)
+              .sort(([a], [b]) => a.localeCompare(b))
+              .map(([k, v]) => `${k}=${v}`)
+              .join(', ')
+
+            const key = `anova:${configStr}`
+
+            combinations.push({
+              componentSetId: 'anova',
+              componentSetName: spec.title,
+              variantName: configStr,
+              properties: fullConfig,
+              isValid: true
+            })
+            selected[key] = false
+          }
+        }
+      }
+
+      setPreviewCombinations(combinations)
+      setSelectedCombinations(selected)
+
+      // Request preview generation for Anova variants (only if requested)
+      if (requestPreviews) {
+        setPreviewsLoading(true)
+        setPreviewsError(null)
+        emit('GENERATE_PREVIEWS', { combinations })
+      }
+    } catch (error: any) {
+      setAnovaError(error.message || 'Failed to generate combinations')
+    }
+  }
+
+  function handleAnovaImport() {
+    try {
+      setAnovaError('')
+
+      // Try parsing as YAML first, then JSON
+      let parsed: any
+      try {
+        parsed = yaml.load(anovaInput)
+      } catch (yamlError) {
+        // If YAML fails, try JSON
+        try {
+          parsed = JSON.parse(anovaInput)
+        } catch (jsonError) {
+          throw new Error('Invalid YAML or JSON format')
+        }
+      }
+
+      // Validate structure
+      if (!parsed.title || !parsed.props || !parsed.variants) {
+        throw new Error('Invalid Anova format: missing required fields (title, props, variants)')
+      }
+
+      const spec = parsed as AnovaSpec
+      setAnovaSpec(spec)
+
+      // Generate combinations immediately (without previews if no component selected)
+      const shouldRequestPreviews = componentSets.length > 0
+      generateAnovaCombinations(spec, shouldRequestPreviews)
+
+      // Auto-select matching component set if none is selected
+      if (componentSets.length === 0) {
+        // Request component selection and wait for update
+        emit('SELECT_COMPONENT_BY_NAME', spec.title)
+        setWaitingForAutoSelect(true)
+        setPreviewsLoading(false) // Don't show loading yet
+        setAnovaError('') // Clear error, will show status in preview section
+        return
+      }
+
+    } catch (error: any) {
+      setAnovaError(error.message || 'Failed to parse Anova data')
+      setAnovaSpec(null)
+      setPreviewCombinations([])
+      setSelectedCombinations({})
     }
   }
 
@@ -173,9 +586,137 @@ function Plugin() {
     }
   })
 
+  // Apply component data validation (if in Figma Direct mode with component data)
+  // Mark combinations as valid/invalid instead of filtering them out
+  let componentDataFilteredCombinations = previewCombinations
+  if (dataSource === 'figma-direct' && componentDataSpec) {
+    const validVariants = filterValidVariants(componentDataSpec)
+    
+    // Determine which properties are VARIANT vs BOOLEAN
+    const variantProps = new Set<string>()
+    const booleanProps = new Set<string>()
+    
+    for (const [propName, prop] of Object.entries(componentDataSpec.props)) {
+      // VARIANT properties have enum values
+      if (prop.enum && prop.enum.length > 0) {
+        variantProps.add(propName)
+      } else if (prop.type === 'boolean') {
+        booleanProps.add(propName)
+      }
+    }
+    
+    componentDataFilteredCombinations = previewCombinations.map(combo => {
+      // Split combo properties into VARIANT and BOOLEAN parts
+      const variantConfig: Record<string, any> = {}
+      const booleanConfig: Record<string, any> = {}
+      
+      for (const [propName, propValue] of Object.entries(combo.properties)) {
+        if (variantProps.has(propName)) {
+          variantConfig[propName] = propValue
+        } else if (booleanProps.has(propName)) {
+          booleanConfig[propName] = propValue
+        }
+      }
+      
+      // Find validVariant(s) that match the VARIANT properties
+      const matchingVariants = validVariants.filter(validVariant => {
+        // Check if all VARIANT properties match
+        return Object.keys(variantConfig).every(key => {
+          const variantValue = String(validVariant.configuration[key] || '').toLowerCase()
+          const comboValue = String(variantConfig[key]).toLowerCase()
+          return variantValue === comboValue
+        })
+      })
+      
+      let isValid = false
+      
+      if (matchingVariants.length > 0) {
+        // Check if the BOOLEAN properties are valid for ANY matching variant
+        isValid = matchingVariants.some(matchingVariant => {
+          // Find the variant spec for element validation
+          const variantSpec = matchingVariant.name === (componentDataSpec.default.name || 'default')
+            ? componentDataSpec.default
+            : componentDataSpec.variants.find(v => v.name === matchingVariant.name)
+          
+          if (!variantSpec) return false
+          
+          // Validate each boolean property
+          for (const [propName, propValue] of Object.entries(booleanConfig)) {
+            const boolValue = String(propValue).toLowerCase() === 'true'
+            
+            // Find elements controlled by this boolean
+            const controlledElements = Object.entries(componentDataSpec.default.elements || {}).filter(([elemName, elem]) => {
+              return elem.propReferences?.visible?.$ref === `#/props/${propName}`
+            })
+            
+            // If boolean is true, check if controlled elements exist in this variant
+            if (boolValue === true && controlledElements.length > 0) {
+              for (const [elemName] of controlledElements) {
+                const variantElem = variantSpec.elements?.[elemName]
+                if (variantElem?.propReferences?.visible === null) {
+                  return false  // Boolean prop not valid for this variant
+                }
+                
+                // Check parent-child relationships
+                const defaultElem = componentDataSpec.default.elements?.[elemName]
+                const parentName = defaultElem?.parent
+                
+                if (parentName) {
+                  const variantParent = variantSpec.elements?.[parentName]
+                  if (variantParent?.children) {
+                    if (!variantParent.children.includes(elemName)) {
+                      return false  // Element not in variant's parent children
+                    }
+                  }
+                }
+              }
+            }
+          }
+          
+          return true  // All boolean properties are valid for this variant
+        })
+      }
+      
+      // Check invalid configurations
+      if (isValid) {
+        const fullConfig = { ...variantConfig, ...booleanConfig }
+        const matchesInvalidConfig = componentDataSpec.invalidConfigurations.some(invalidConfig => {
+          return Object.keys(invalidConfig).every(key => {
+            const invalidValue = String(invalidConfig[key]).toLowerCase()
+            const comboValue = String(fullConfig[key]).toLowerCase()
+            return invalidValue === comboValue
+          })
+        })
+        
+        if (matchesInvalidConfig) {
+          isValid = false
+        }
+      }
+      
+      return { ...combo, isValidCombination: isValid }
+    })
+  } else {
+    // No component data spec, mark all as valid
+    componentDataFilteredCombinations = previewCombinations.map(combo => ({ ...combo, isValidCombination: true }))
+  }
+
+  // Apply property filters
+  const filteredCombinations = componentDataFilteredCombinations.filter(combo => {
+    // Check each active filter
+    for (const [propName, filterValue] of Object.entries(activeFilters)) {
+      if (filterValue === null || filterValue === '') continue // Skip empty filters
+
+      const comboValue = combo.properties[propName]
+      if (String(comboValue) !== filterValue) {
+        return false // Combination doesn't match this filter
+      }
+    }
+    return true // Passes all filters
+  })
+
   // Sort combinations if a column is selected
   const sortedCombinations = sortColumn
-    ? [...previewCombinations].sort((a, b) => {
+    ? [...filteredCombinations].sort((a, b) => {
         const aVal = a.properties[sortColumn]
         const bVal = b.properties[sortColumn]
 
@@ -191,20 +732,203 @@ function Plugin() {
         const comparison = aStr.localeCompare(bStr)
         return sortDirection === 'asc' ? comparison : -comparison
       })
-    : previewCombinations
+    : filteredCombinations
+
+  // Group combinations by primary variant property (e.g., Type)
+  const groupedCombinations: { [groupKey: string]: any[] } = {}
+  let groupingProperty = ''
+
+  // Determine grouping property based on user selection or default
+  if (selectedGroupingProperty) {
+    // Use user-selected grouping property
+    groupingProperty = selectedGroupingProperty
+  } else if (dataSource === 'anova' && anovaSpec) {
+    // Anova mode: Find the first VARIANT property
+    for (const [propName, prop] of Object.entries(anovaSpec.props)) {
+      if (prop.enum && prop.enum.length > 0) {
+        groupingProperty = propName
+        break
+      }
+    }
+  } else if (dataSource === 'figma-direct' && propertyOrder.length > 0) {
+    // Figma Direct mode: Use the first VARIANT property with 3+ values
+    console.log('🔍 Determining grouping property from propertyOrder:', propertyOrder)
+    for (const propName of propertyOrder) {
+      const prop = allProperties[propName]
+      const valueCount = prop?.values?.length || 0
+      console.log(`  - Checking "${propName}": type=${prop?.type}, values=${valueCount}`)
+      if (prop && prop.type === 'VARIANT' && valueCount > 2) {
+        groupingProperty = propName
+        console.log(`  ✓ Using "${propName}" for grouping`)
+        break
+      }
+    }
+  }
+
+  // Group combinations by this property (for both modes)
+  if (groupingProperty) {
+    // Separate valid and invalid combinations
+    const validCombos = sortedCombinations.filter(combo => combo.isValidCombination !== false)
+    const invalidCombos = sortedCombinations.filter(combo => combo.isValidCombination === false)
+    
+    // Group valid combinations by the grouping property
+    validCombos.forEach(combo => {
+      const groupValue = combo.properties[groupingProperty]
+      const groupKey = groupValue ? String(groupValue) : 'Other'
+
+      if (!groupedCombinations[groupKey]) {
+        groupedCombinations[groupKey] = []
+      }
+      groupedCombinations[groupKey].push(combo)
+    })
+    
+    // Add invalid combinations as a separate group at the end
+    if (invalidCombos.length > 0) {
+      groupedCombinations['__INVALID__'] = invalidCombos
+    }
+  }
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {componentSets.length === 0 ? (
+    <>
+      <style>
+        {`
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+          
+          .tooltip-wrapper .tooltip {
+            position: absolute;
+            left: calc(100% + 8px);
+            top: 50%;
+            transform: translateY(-50%);
+            background: var(--figma-color-bg-inverse);
+            color: var(--figma-color-text-onbrand);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            white-space: nowrap;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.1s ease;
+            z-index: 1000;
+          }
+          
+          .tooltip-wrapper:hover .tooltip {
+            opacity: 1;
+            transition-delay: 0.1s;
+          }
+        `}
+
+      </style>
+      <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+        {/* Mode Toggle */}
+      {showComponentDataTab && (
+      <div style={{ display: 'flex', borderBottom: '1px solid var(--figma-color-border)', flexShrink: 0 }}>
+        <div
+          onClick={() => handleModeChange('figma-direct')}
+          style={{
+            flex: 1,
+            padding: '12px',
+            textAlign: 'center',
+            cursor: 'pointer',
+            borderBottom: dataSource === 'figma-direct' ? '2px solid var(--figma-color-text-brand)' : '2px solid transparent',
+            color: dataSource === 'figma-direct' ? 'var(--figma-color-text)' : 'var(--figma-color-text-secondary)',
+            fontWeight: dataSource === 'figma-direct' ? 600 : 400,
+            fontSize: '11px',
+            transition: 'all 0.2s ease'
+          }}
+        >
+          FIGMA CANVAS
+        </div>
+{showComponentDataTab && (
+          <div
+            onClick={() => handleModeChange('anova')}
+            style={{
+              flex: 1,
+              padding: '12px',
+              textAlign: 'center',
+              cursor: 'pointer',
+              borderBottom: dataSource === 'anova' ? '2px solid var(--figma-color-text-brand)' : '2px solid transparent',
+              color: dataSource === 'anova' ? 'var(--figma-color-text)' : 'var(--figma-color-text-secondary)',
+              fontWeight: dataSource === 'anova' ? 600 : 400,
+              fontSize: '11px',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            COMPONENT DATA
+          </div>
+        )}
+      </div>
+      )}
+
+      {/* Anova Input Section */}
+      {dataSource === 'anova' && (
+        <div style={{ display: 'flex', flexDirection: 'column', flexShrink: 0, borderBottom: '1px solid var(--figma-color-border)' }}>
+          <div style={{ padding: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {anovaSpec && (
+              <>
+                <div style={{
+                  fontFamily: 'var(--text-body-large-strong-font-family)',
+                  fontSize: 'var(--text-body-large-strong-font-size)',
+                  fontWeight: 600,
+                  letterSpacing: 'var(--text-body-large-strong-letter-spacing)',
+                  lineHeight: 'var(--text-body-large-strong-line-height)',
+                  color: 'var(--figma-color-text)'
+                }}>
+                  {anovaSpec.title}
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--figma-color-text-tertiary)' }}>·</div>
+              </>
+            )}
+            <textarea
+              value={anovaInput}
+              onChange={(e: any) => setAnovaInput(e.target.value)}
+              placeholder="Paste YAML/JSON..."
+              style={{
+                flex: 1,
+                height: '30px',
+                padding: '6px 8px',
+                fontFamily: 'var(--font-stack)',
+                fontSize: '11px',
+                border: '1px solid var(--figma-color-border)',
+                borderRadius: '2px',
+                background: 'var(--figma-color-bg)',
+                color: 'var(--figma-color-text)',
+                resize: 'none',
+                lineHeight: '16px',
+                overflow: 'hidden'
+              }}
+            />
+            <Button onClick={handleAnovaImport} disabled={!anovaInput.trim()}>
+              Import
+            </Button>
+          </div>
+          {anovaError && (
+            <div style={{ padding: '0 12px 12px 12px', color: 'var(--figma-color-text-danger)', fontSize: '11px' }}>
+              {anovaError}
+            </div>
+          )}
+        </div>
+      )}
+
+
+
+      {dataSource === 'figma-direct' && componentSets.length === 0 ? (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <Muted>Select a component or component set on the canvas</Muted>
         </div>
+      ) : dataSource === 'anova' && !anovaSpec ? (
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Muted>Paste Anova data above to get started</Muted>
+        </div>
       ) : (
         <>
-          {/* Properties Section */}
+          {/* Properties Section - Only show in Figma Direct mode */}
+          {dataSource === 'figma-direct' && (
           <div style={{ display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
         <div 
-          style={{ padding: '12px 12px 8px 12px', minHeight: '40px', cursor: 'pointer', position: 'sticky', top: 0, background: 'var(--figma-color-bg)', zIndex: 1 }}
+          style={{ padding: '12px 12px 4px 12px', minHeight: '40px', cursor: 'pointer', position: 'sticky', top: 0, background: 'var(--figma-color-bg)', zIndex: 1 }}
           onClick={() => setIsPropertiesCollapsed(!isPropertiesCollapsed)}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
@@ -250,15 +974,21 @@ function Plugin() {
           <div style={{ marginBottom: '16px' }}>
             {propertyOrder.map(propName => {
               const prop = allProperties[propName]
-              const isVariant = prop.type === 'VARIANT'
-              const isChecked = expandedProperties[propName] || false
+              // Only treat as variant if it has 3+ values
+              const isVariant = prop.type === 'VARIANT' && prop.values && prop.values.length > 2
+              const isChecked = expandedProperties[propName] || isVariant
 
               // Build the icon element
               let icon
-              if (prop.type === 'BOOLEAN') icon = <IconBoolean16 />
-              else if (prop.type === 'VARIANT') icon = <IconInstance16 />
-              else if (prop.type === 'INSTANCE_SWAP') icon = <IconComponentProperty16 />
-              else icon = <IconBoolean16 />
+              if (prop.type === 'BOOLEAN' || (prop.type === 'VARIANT' && prop.values && prop.values.length === 2)) {
+                icon = <IconBoolean16 />
+              } else if (prop.type === 'VARIANT') {
+                icon = <IconInstance16 />
+              } else if (prop.type === 'INSTANCE_SWAP') {
+                icon = <IconComponentProperty16 />
+              } else {
+                icon = <IconBoolean16 />
+              }
 
               return (
                 <SelectableItem
@@ -289,34 +1019,246 @@ function Plugin() {
           </div>
         )}
       </div>
+          )}
 
-      <VerticalSpace space="medium" />
+
 
       {/* Preview Section - Takes remaining space */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
         <>
-            <div 
-              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0, padding: '0 12px 8px 12px', minHeight: '40px', position: 'sticky', top: 0, background: 'var(--figma-color-bg)', zIndex: 1 }}
+            <div
+              style={{ display: 'flex', flexDirection: 'column', gap: '8px', flexShrink: 0, padding: '12px 12px 4px 12px', minHeight: '40px', position: 'sticky', top: 0, background: 'var(--figma-color-bg)', zIndex: 1 }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div style={{ 
-                  fontFamily: 'var(--text-body-large-strong-font-family)',
-                  fontSize: 'var(--text-body-large-strong-font-size)',
-                  fontWeight: 600,
-                  letterSpacing: 'var(--text-body-large-strong-letter-spacing)',
-                  lineHeight: 'var(--text-body-large-strong-line-height)',
-                  color: 'var(--figma-color-text)'
-                }}>
-                  Preview
-                </div>
+              {/* First Row: Preview heading, count, status, and Select All button */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{
+                    fontFamily: 'var(--text-body-large-strong-font-family)',
+                    fontSize: 'var(--text-body-large-strong-font-size)',
+                    fontWeight: 600,
+                    letterSpacing: 'var(--text-body-large-strong-letter-spacing)',
+                    lineHeight: 'var(--text-body-large-strong-line-height)',
+                    color: 'var(--figma-color-text)'
+                  }}>
+                    Preview
+                  </div>
                 <div style={{ fontSize: '11px', color: 'var(--figma-color-text-tertiary)' }}>·</div>
                 <div style={{ fontSize: '11px', color: 'var(--figma-color-text)' }}>
-                  {Object.values(selectedCombinations).filter(v => v).length} / {previewCombinations.length} selected
+                  {Object.values(selectedCombinations).filter(v => v).length} / {sortedCombinations.filter((c: any) => c.isValidCombination !== false).length} selected
                 </div>
+                
+                {dataSource === 'figma-direct' && componentDataSpec && sortedCombinations.some((c: any) => c.isValidCombination === false) && (
+                  <>
+                    <div style={{ fontSize: '11px', color: 'var(--figma-color-text-tertiary)' }}>·</div>
+                    <div style={{ fontSize: '11px', color: 'var(--figma-color-text-secondary)' }}>
+                      {sortedCombinations.length} total (<span
+                        onClick={() => {
+                          const invalidSection = document.getElementById('invalid-combinations-group')
+                          if (invalidSection) {
+                            invalidSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                          }
+                        }}
+                        style={{
+                          color: 'var(--figma-color-text-brand)',
+                          cursor: 'pointer',
+                          textDecoration: 'underline'
+                        }}
+                        onMouseEnter={(e: any) => e.currentTarget.style.opacity = '0.7'}
+                        onMouseLeave={(e: any) => e.currentTarget.style.opacity = '1'}
+>{sortedCombinations.filter((c: any) => c.isValidCombination === false).length} invalid</span>)
+                    </div>
+                  </>
+                )}
+                
+                {/* Add/Remove Component Data Button - After total count */}
+                {dataSource === 'figma-direct' && componentSets.length > 0 && (
+                  <>
+                    <div style={{ fontSize: '11px', color: 'var(--figma-color-text-tertiary)' }}>·</div>
+                    <div style={{ position: 'relative' }} className="tooltip-wrapper">
+                      <IconButton
+                        onClick={() => {
+                          if (componentDataSpec) {
+                            // Remove component data
+                            setComponentDataInput('')
+                            setComponentDataSpec(null)
+                            setComponentDataError('')
+                          } else {
+                            // Add component data
+                            setIsComponentDataModalOpen(true)
+                          }
+                        }}
+                      >
+                        {componentDataSpec ? (
+                          <div style={{ 
+                            color: 'var(--figma-color-text-danger)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            <IconClose16 />
+                          </div>
+                        ) : (
+                          <IconPlus16 />
+                        )}
+                      </IconButton>
+                      <div className="tooltip">
+                        {componentDataSpec ? 'Remove Component Data' : 'Add Component Data'}
+                      </div>
+                    </div>
+                  </>
+                )}
+                
+                {(waitingForAutoSelect || previewsLoading || previewsError) && dataSource === 'anova' && (
+                  <>
+                    <div style={{ fontSize: '11px', color: 'var(--figma-color-text-tertiary)' }}>·</div>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '4px 8px',
+                      borderRadius: '3px',
+                      background: previewsError
+                        ? 'var(--figma-color-bg-danger-tertiary)'
+                        : 'var(--figma-color-bg-secondary)'
+                    }}>
+                      {!previewsError && (
+                        <div style={{
+                          width: '12px',
+                          height: '12px',
+                          border: '2px solid var(--figma-color-text-brand)',
+                          borderTopColor: 'transparent',
+                          borderRadius: '50%',
+                          animation: 'spin 0.8s linear infinite'
+                        }} />
+                      )}
+                      <div style={{
+                        fontSize: '11px',
+                        fontWeight: 500,
+                        color: previewsError
+                          ? 'var(--figma-color-text-danger)'
+                          : 'var(--figma-color-text)'
+                      }}>
+                        {previewsError ? 'Preview error' : waitingForAutoSelect ? 'Searching for component' : 'Generating previews'}
+                      </div>
+                    </div>
+                  </>
+                )}
+                </div>
+                <Checkbox
+                  value={(() => {
+                    const validCombinationKeys = sortedCombinations
+                      .filter((c: any) => c.isValidCombination !== false)
+                      .map(combo => getCombinationKey(combo))
+                    return validCombinationKeys.every(key => selectedCombinations[key])
+                  })()}
+                  onValueChange={handleSelectAll}
+                >
+                  <Text>Select All</Text>
+                </Checkbox>
               </div>
-              <Button secondary onClick={handleSelectAll}>
-                {Object.values(selectedCombinations).every(v => v) ? 'Deselect All' : 'Select All'}
-              </Button>
+
+              {/* Second Row: Filtering and Sorting Controls */}
+              {previewCombinations.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {/* Grouping Property Selector - Show when there are multiple VARIANT properties */}
+                  {(() => {
+                  let groupableProps: string[] = []
+                  
+                  if (dataSource === 'anova' && anovaSpec) {
+                    // Anova mode: get VARIANT properties from spec
+                    groupableProps = Object.entries(anovaSpec.props)
+                      .filter(([propName, prop]) => prop.enum && prop.enum.length > 0)
+                      .map(([propName]) => propName)
+                  } else if (dataSource === 'figma-direct' && propertyOrder.length > 0) {
+                    // Figma Direct mode: get VARIANT properties with 3+ values from allProperties
+                    groupableProps = propertyOrder.filter(propName => {
+                      const prop = allProperties[propName]
+                      return prop && prop.type === 'VARIANT' && prop.values && prop.values.length > 2
+                    })
+                  }
+
+                  // Only show if there are 2+ groupable properties
+                  if (groupableProps.length < 2) return null
+
+                  const groupOptions: DropdownOption[] = groupableProps.map(propName => ({
+                    value: propName,
+                    text: `Group by ${propName}`
+                  }))
+
+                  // Determine current grouping property
+                  let currentGrouping = selectedGroupingProperty
+                  if (!currentGrouping && groupableProps.length > 0) {
+                    currentGrouping = groupableProps[0] // Default to first
+                  }
+
+                  return (
+                    <div style={{ minWidth: '140px' }}>
+                        <Dropdown
+                          value={currentGrouping || ''}
+                          options={groupOptions}
+                          onChange={(e) => setSelectedGroupingProperty(e.currentTarget.value)}
+                          style={{
+                            fontSize: '11px',
+                            fontWeight: 500
+                          }}
+                        />
+                      </div>
+                  )
+                })()}
+                
+                {/* Filter Dropdowns - Show for both modes when combinations exist */}
+                {(() => {
+                  let filterableProps: [string, any][] = []
+                  
+                  if (dataSource === 'anova' && anovaSpec) {
+                    // Anova mode: get VARIANT properties from spec
+                    filterableProps = Object.entries(anovaSpec.props).filter(([propName, prop]) => {
+                      return prop.enum && prop.enum.length > 0
+                    })
+                  } else if (dataSource === 'figma-direct' && propertyOrder.length > 0) {
+                    // Figma Direct mode: get VARIANT properties with 3+ values from allProperties
+                    filterableProps = propertyOrder
+                      .filter(propName => {
+                        const prop = allProperties[propName]
+                        return prop && prop.type === 'VARIANT' && prop.values && prop.values.length > 2
+                      })
+                      .map(propName => [propName, allProperties[propName]])
+                  }
+
+                  if (filterableProps.length === 0) return null
+
+                  return (
+                    <>
+                      {filterableProps.map(([propName, prop]) => {
+                        const uniqueValues = getUniquePropertyValues(propName)
+                        const currentFilter = activeFilters[propName]
+
+                        const options: DropdownOption[] = [
+                          { value: '', text: `All ${propName}` },
+                          ...uniqueValues.map(value => ({ value, text: value }))
+                        ]
+
+                        return (
+                          <div key={propName} style={{ minWidth: '100px' }}>
+                            <Dropdown
+                              value={currentFilter || ''}
+                              options={options}
+                              onChange={(newValue) => handleFilterChange(propName, newValue.currentTarget.value || null)}
+                              style={{
+                                fontSize: '11px',
+                                borderColor: currentFilter ? 'var(--figma-color-text-brand)' : undefined,
+                                fontWeight: currentFilter ? 600 : 400
+                              }}
+                            />
+                          </div>
+                        )
+                      })}
+                    </>
+                  )
+                })()}
+
+</div>
+              )}
             </div>
 
             <div style={{ flex: 1, overflowY: 'auto', overflowX: 'auto', padding: '0 12px' }}>
@@ -325,97 +1267,422 @@ function Plugin() {
                   <Muted>No combinations to show</Muted>
                 </div>
               ) : (
-            <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: '11px' }}>
-              <thead>
-                <tr style={{ height: '40px' }}>
-                  {propertyOrder.map((prop, index) => {
-                    const isActive = sortColumn === prop
-                    const isAscending = isActive && sortDirection === 'asc'
-                    const isFirstColumn = index === 0
+                /* Unified Grouped list view with thumbnails (both modes) */
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  {Object.keys(groupedCombinations).length > 0 ? (
+                    Object.entries(groupedCombinations).map(([groupKey, groupCombos]) => {
+                      // Default invalid group to collapsed if not explicitly set
+                      const isCollapsed = groupKey === '__INVALID__' 
+                        ? (collapsedGroups[groupKey] !== undefined ? collapsedGroups[groupKey] : true)
+                        : (collapsedGroups[groupKey] || false)
+                      const groupSelectedCount = groupCombos.filter(combo =>
+                        selectedCombinations[getCombinationKey(combo)]
+                      ).length
+
+                      return (
+                        <div 
+                          key={groupKey} 
+                          id={groupKey === '__INVALID__' ? 'invalid-combinations-group' : undefined}
+                          style={{ marginBottom: isCollapsed ? '8px' : '16px' }}
+                        >
+                          {/* Custom Minimal Disclosure Header */}
+                          <div 
+                            style={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: '4px',
+                              padding: '4px 0',
+                              cursor: 'pointer',
+                              userSelect: 'none',
+                              marginLeft: '-2px'
+                            }}
+                            onClick={() => handleGroupToggle(groupKey)}
+                          >
+                            {/* Chevron Icon */}
+                            <div style={{
+                              transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
+                              transition: 'transform 0.15s ease',
+                              display: 'flex',
+                              alignItems: 'center',
+                              color: 'var(--figma-color-text-secondary)',
+                              marginRight: '2px'
+                            }}>
+                              <IconChevronDown16 />
+                            </div>
+                            
+                            {/* Title */}
+                            <Text style={{ fontWeight: 500, color: groupKey === '__INVALID__' ? 'var(--figma-color-text-secondary)' : undefined }}>
+                              {groupKey === '__INVALID__' ? 'Invalid Combinations' : `${groupingProperty}: ${groupKey}`}
+                            </Text>
+                            
+                            {/* Count */}
+                            <Muted style={{ fontSize: '11px', marginLeft: '2px' }}>
+                              ({groupSelectedCount} / {groupCombos.length})
+                            </Muted>
+                            
+                            {/* Select All Checkbox */}
+                            {groupKey !== '__INVALID__' && (
+                              <div style={{ marginLeft: 'auto' }}>
+                                <Checkbox
+                                  value={groupSelectedCount === groupCombos.length}
+                                  onValueChange={(e: any) => {
+                                    handleGroupSelectAll(groupCombos)
+                                  }}
+                                  onClick={(e: any) => e.stopPropagation()}
+                                >
+                                  <Text>Select {groupKey}</Text>
+                                </Checkbox>
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* Invalid Combinations Summary - Always show for invalid group */}
+                          {groupKey === '__INVALID__' && groupCombos.length > 0 && (
+                              <div style={{
+                                padding: '12px',
+                                background: 'var(--figma-color-bg-secondary)',
+                                borderRadius: '6px',
+                                border: '1px solid var(--figma-color-border)',
+                                marginBottom: '4px'
+                              }}>
+                                <div style={{
+                                  fontSize: '11px',
+                                  fontWeight: 600,
+                                  color: 'var(--figma-color-text)',
+                                  marginBottom: '8px'
+                                }}>
+                                  Why these combinations are invalid:
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                  {(() => {
+                                    // Group invalid combinations by their property signatures
+                                    const invalidPatterns = new Map<string, { parts: string[], count: number }>()
+                                    
+                                    groupCombos.forEach(combo => {
+                                      // Create a readable signature from ALL properties
+                                      const propParts: string[] = []
+                                      
+                                      Object.entries(combo.properties).forEach(([key, value]) => {
+                                        const strValue = String(value).toLowerCase()
+                                        
+                                        // For boolean properties, only show if true
+                                        if (strValue === 'true') {
+                                          propParts.push(key)
+                                        } else if (strValue !== 'false') {
+                                          // For non-boolean (VARIANT) properties, show key=value
+                                          propParts.push(`${key}=${value}`)
+                                        }
+                                      })
+                                      
+                                      const sortedParts = propParts.sort()
+                                      const signature = sortedParts.join(' + ')
+                                      
+                                      if (signature) {
+                                        const existing = invalidPatterns.get(signature)
+                                        if (existing) {
+                                          existing.count++
+                                        } else {
+                                          invalidPatterns.set(signature, { parts: sortedParts, count: 1 })
+                                        }
+                                      }
+                                    })
+                                    
+                                    return Array.from(invalidPatterns.entries()).map(([pattern, { parts, count }]) => (
+                                      <div key={pattern} style={{
+                                        fontSize: '11px',
+                                        color: 'var(--figma-color-text-secondary)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '6px'
+                                      }}>
+                                        <span style={{
+                                          width: '4px',
+                                          height: '4px',
+                                          borderRadius: '50%',
+                                          background: 'var(--figma-color-text-tertiary)',
+                                          flexShrink: 0
+                                        }} />
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+                                          {parts.map((part, idx) => (
+                                            <span key={idx}>
+                                              <span style={{
+                                                padding: '2px 6px',
+                                                borderRadius: '3px',
+                                                background: 'var(--figma-color-bg-tertiary)',
+                                                fontSize: '10px',
+                                                fontFamily: 'monospace',
+                                                color: 'var(--figma-color-text)',
+                                                whiteSpace: 'nowrap'
+                                              }}>
+                                                {part}
+                                              </span>
+                                              {idx < parts.length - 1 && (
+                                                <span style={{ 
+                                                  margin: '0 2px',
+                                                  color: 'var(--figma-color-text-tertiary)',
+                                                  fontSize: '10px'
+                                                }}>+</span>
+                                              )}
+                                            </span>
+                                          ))}
+                                        </div>
+                                        <span style={{ color: 'var(--figma-color-text-tertiary)' }}>
+                                          ({count} variant{count > 1 ? 's' : ''})
+                                        </span>
+                                      </div>
+                                    ))
+                                  })()}
+                                </div>
+                              </div>
+                            )}
+                          
+                          {/* Group Items */}
+                          {!isCollapsed && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px', width: '100%' }}>
+                            {groupCombos.map((combo, localIndex) => {
+                    const key = getCombinationKey(combo)
+                    const isSelected = selectedCombinations[key] || false
+                    const isHovered = hoveredRow === key
+                    const previewImage = previews[combo.variantName]
+                    const isInvalid = combo.isValidCombination === false
+
+                    // Calculate global index in sortedCombinations
+                    const globalIndex = sortedCombinations.findIndex(c => getCombinationKey(c) === key)
+
+                    let bgColor = 'transparent'
+                    if (isInvalid) {
+                      bgColor = 'var(--figma-color-bg-disabled)'
+                    } else if (isSelected) {
+                      bgColor = 'var(--figma-color-bg-selected)'
+                    } else if (isHovered) {
+                      bgColor = 'var(--figma-color-bg-hover)'
+                    }
 
                     return (
-                      <th
-                        key={prop}
+                      <div
+                        key={localIndex}
                         style={{
-                          padding: isFirstColumn ? '8px 8px 8px 0' : '8px',
-                          textAlign: 'left',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          userSelect: 'none',
-                          width: prop === 'Type' ? '30%' : 'auto'
-                        }}
-                        onClick={() => handleSort(prop)}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <Text>{prop}</Text>
-                          <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            opacity: isActive ? 1 : 0.3,
-                            transform: isAscending ? 'rotate(180deg)' : 'rotate(0deg)',
-                            transition: 'transform 0.2s ease'
-                          }}>
-                            <IconChevronDown16 />
-                          </div>
-                        </div>
-                      </th>
-                    )
-                  })}
-                </tr>
-              </thead>
-              <tbody>
-                {sortedCombinations.map((combo, index) => {
-                  const key = `${combo.componentSetId}:${JSON.stringify(combo.properties)}`
-                  const isSelected = selectedCombinations[key] || false
-                  const isHovered = hoveredRow === key
-                  
-                  let bgColor = 'transparent'
-                  if (isSelected) {
-                    bgColor = 'var(--figma-color-bg-selected)'
-                  } else if (isHovered) {
-                    bgColor = 'var(--figma-color-bg-hover)'
-                  }
-                  
-                  return (
-                    <tr
-                      key={index}
-                      style={{
-                        cursor: 'pointer',
-                        height: '40px'
-                      }}
-                      onMouseEnter={() => setHoveredRow(key)}
-                      onMouseLeave={() => setHoveredRow(null)}
-                      onClick={() => handleCombinationToggle(key)}
-                    >
-                      <td colSpan={propertyOrder.length} style={{ padding: 0 }}>
-                        <div style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          height: '40px',
+                          cursor: isInvalid ? 'not-allowed' : 'pointer',
                           background: bgColor,
                           borderRadius: '6px',
-                          padding: '0 8px',
-                          marginBottom: '8px'
+                          padding: '12px',
+                          border: isInvalid 
+                            ? '1px dashed var(--figma-color-border)' 
+                            : isSelected 
+                              ? '1px solid var(--figma-color-text-brand)' 
+                              : '1px solid transparent',
+                          display: 'flex',
+                          gap: '12px',
+                          alignItems: 'flex-start',
+                          opacity: isInvalid ? 0.5 : 1,
+                          position: 'relative'
+                        }}
+                        onMouseEnter={() => !isInvalid && setHoveredRow(key)}
+                        onMouseLeave={() => setHoveredRow(null)}
+                        onClick={(e: any) => !isInvalid && handleCombinationToggle(key, globalIndex, e.shiftKey)}
+                      >
+                        {/* Thumbnail */}
+                        <div style={{
+                          width: '96px',
+                          height: '96px',
+                          flexShrink: 0,
+                          borderRadius: '6px',
+                          overflow: 'hidden',
+                          background: 'var(--figma-color-bg-tertiary)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          border: '1px solid var(--figma-color-border)'
                         }}>
-                          {propertyOrder.map((propName, colIndex) => (
-                            <div key={propName} style={{ 
-                              flex: propName === 'Type' ? '0 0 30%' : '1',
-                              padding: colIndex === 0 ? '0 8px 0 0' : '0 8px'
-                            }}>
-                              <Text>
-                                {combo.properties[propName] !== undefined
-                                  ? formatPropertyValue(combo.properties[propName])
-                                  : '—'}
-                              </Text>
-                            </div>
-                          ))}
+                          {previewsLoading ? (
+                            <LoadingIndicator />
+                          ) : previewImage ? (
+                            <img
+                              src={`data:image/png;base64,${previewImage}`}
+                              alt={combo.variantName}
+                              style={{
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'contain'
+                              }}
+                            />
+                          ) : (
+                            <Muted style={{ fontSize: '24px' }}>?</Muted>
+                          )}
                         </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+
+                        {/* Properties */}
+                        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          {/* Invalid Combination Badge */}
+                          {isInvalid && (
+                            <div style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              padding: '2px 6px',
+                              borderRadius: '3px',
+                              background: 'var(--figma-color-bg-tertiary)',
+                              alignSelf: 'flex-start'
+                            }}>
+                              <span style={{
+                                fontSize: '10px',
+                                fontWeight: 500,
+                                color: 'var(--figma-color-text-tertiary)'
+                              }}>
+                                Invalid
+                              </span>
+                            </div>
+                          )}
+                          
+                          <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                          {combo.properties && Object.keys(combo.properties).length > 0 && (() => {
+                            // Separate boolean and variant properties
+                            const boolProps: [string, any][] = []
+                            const variantProps: [string, any][] = []
+
+                            Object.entries(combo.properties).forEach(([key, value]) => {
+                              // Skip the grouping property since it's already shown in the group header
+                              if (key === groupingProperty) {
+                                return
+                              }
+                              
+                              const strValue = String(value).toLowerCase()
+                              const isBool = strValue === 'true' || strValue === 'false'
+
+                              if (isBool) {
+                                boolProps.push([key, value])
+                              } else {
+                                variantProps.push([key, value])
+                              }
+                            })
+
+                            return (
+                              <>
+                                {/* Variant Properties (Left) */}
+                                {variantProps.length > 0 && (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: '0 0 auto' }}>
+                                    {variantProps.map(([key, value]) => (
+                                      <div
+                                        key={key}
+                                        style={{
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          fontSize: '11px'
+                                        }}
+                                      >
+                                        <span style={{
+                                          color: 'var(--figma-color-text)',
+                                          fontWeight: 500,
+                                          padding: '2px 8px',
+                                          borderRadius: '3px',
+                                          background: 'var(--figma-color-bg-brand-tertiary)'
+                                        }}>
+                                          {String(value)}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+
+                                {/* Boolean Properties (Right) */}
+                                {boolProps.length > 0 && (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginLeft: 'auto', alignItems: 'flex-end' }}>
+                                    {boolProps.map(([key, value]) => {
+                                      const strValue = String(value).toLowerCase()
+                                      const boolValue = strValue === 'true'
+
+                                      return (
+                                        <div
+                                          key={key}
+                                          style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '6px',
+                                            fontSize: '11px'
+                                          }}
+                                        >
+                                          <span style={{
+                                            color: 'var(--figma-color-text-secondary)'
+                                          }}>
+                                            {key}
+                                          </span>
+                                          <span style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            padding: '2px',
+                                            borderRadius: '3px',
+                                            background: boolValue
+                                              ? 'var(--figma-color-bg-success)'
+                                              : 'var(--figma-color-bg-secondary)',
+                                            fontSize: '10px',
+                                            color: boolValue ? 'var(--figma-color-text-onbrand)' : 'var(--figma-color-text-tertiary)',
+                                            fontWeight: 600,
+                                            lineHeight: 1
+                                          }}>
+                                            {boolValue ? '✓' : '✗'}
+                                          </span>
+                                        </div>
+                                      )
+                                    })}
+                                  </div>
+                                )}
+                              </>
+                            )
+                          })()}
+                          </div>
+                          
+                        </div>
+                        
+                        {/* Select Across Groups Button - Centered absolutely, only show on hover */}
+                        {!isInvalid && isHovered && groupingProperty && Object.keys(groupedCombinations).length > 1 && (
+                          <div style={{
+                            position: 'absolute',
+                            top: '50%',
+                            left: '50%',
+                            transform: 'translate(-50%, -50%)',
+                            pointerEvents: 'none'
+                          }}>
+                            <Button
+                              secondary
+                              onClick={(e: any) => {
+                                e.stopPropagation()
+                                handleSelectAcrossGroups(combo, groupingProperty)
+                              }}
+                              onMouseEnter={(e: any) => {
+                                e.currentTarget.style.background = 'var(--figma-color-bg-hover)'
+                                e.currentTarget.style.borderColor = 'var(--figma-color-text-brand)'
+                              }}
+                              onMouseLeave={(e: any) => {
+                                e.currentTarget.style.background = ''
+                                e.currentTarget.style.borderColor = ''
+                              }}
+                              style={{ 
+                                fontSize: '11px', 
+                                padding: '4px 8px',
+                                pointerEvents: 'auto',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              Select in All Groups
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })
+                  ) : (
+                    /* Fallback for no grouping */
+                    sortedCombinations.map((combo, index) => {
+                      const key = getCombinationKey(combo)
+                      return <div key={key}>No grouping available</div>
+                    })
+                  )}
+                </div>
               )}
             </div>
           </>
@@ -434,7 +1701,51 @@ function Plugin() {
           Generate Sticker Sheet
         </Button>
       </div>
-    </div>
+      </div>
+
+      {/* Component Data Modal */}
+      {isComponentDataModalOpen && (
+        <Modal
+          open={isComponentDataModalOpen}
+          title="Add Component Data"
+          onCloseButtonClick={() => setIsComponentDataModalOpen(false)}
+        >
+          <div style={{ padding: '12px' }}>
+            <div style={{ marginBottom: '12px' }}>
+              <Muted>Paste component data (YAML) to filter variants to only valid combinations</Muted>
+            </div>
+            <TextboxMultiline
+              value={componentDataInput}
+              onValueInput={setComponentDataInput}
+              placeholder="Paste Anova YAML data here..."
+              rows={12}
+            />
+            {componentDataError && (
+              <div style={{ marginTop: '8px', color: 'var(--figma-color-text-danger)', fontSize: '11px' }}>
+                {componentDataError}
+              </div>
+            )}
+            {componentDataSpec && (
+              <div style={{ marginTop: '8px', color: 'var(--figma-color-text-success)', fontSize: '11px' }}>
+                ✓ Loaded: {componentDataSpec.title}
+              </div>
+            )}
+            <VerticalSpace space="medium" />
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <Button secondary onClick={() => setIsComponentDataModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={() => {
+                handleComponentDataParse()
+                setIsComponentDataModalOpen(false)
+              }}>
+                Apply Filter
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </>
   )
 }
 

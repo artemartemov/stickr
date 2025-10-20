@@ -15,6 +15,47 @@ export default function () {
     }
   })
 
+  // Handle preview generation for Anova variants
+  on('GENERATE_PREVIEWS', async (data: { combinations: any[] }) => {
+    try {
+      console.log('Generating previews for', data.combinations.length, 'combinations')
+      const previews = await generatePreviews(data.combinations)
+      emit('PREVIEWS_READY', previews)
+    } catch (error) {
+      console.error('Error generating previews:', error)
+      emit('PREVIEWS_ERROR', { error: String(error) })
+    }
+  })
+
+  // Handle auto-selecting component by name
+  on('SELECT_COMPONENT_BY_NAME', async (componentName: string) => {
+    try {
+      // Search the current page for a component set with matching name
+      const allNodes = figma.currentPage.findAll(node => 
+        node.type === 'COMPONENT_SET' && node.name === componentName
+      )
+
+      if (allNodes.length > 0) {
+        // Select the first matching component set
+        figma.currentPage.selection = [allNodes[0] as SceneNode]
+        figma.viewport.scrollAndZoomIntoView([allNodes[0] as SceneNode])
+        
+        // Small delay to ensure selection is registered
+        await new Promise(resolve => setTimeout(resolve, 50))
+        
+        // Send updated selection data to UI
+        const componentData = getComponentData()
+        emit('INIT_DATA', componentData)
+        
+        console.log('Component selected:', componentName)
+      } else {
+        console.log('No component found with name:', componentName)
+      }
+    } catch (error) {
+      console.error('Error selecting component:', error)
+    }
+  })
+
   // Function to get component data from selection or page
   function getComponentData() {
     let componentSets: any[] = []
@@ -84,7 +125,7 @@ export default function () {
 }
 
 async function generateStickerSheet(data: any) {
-  const { selectedCombinations, includeLightDark } = data
+  const { dataSource, selectedCombinations, includeLightDark, anovaComponentName } = data
 
   if (selectedCombinations.length === 0) {
     figma.notify('No combinations selected')
@@ -117,7 +158,30 @@ async function generateStickerSheet(data: any) {
   // Create sections for each component set
   for (const componentSetId in groupedByComponent) {
     const combos = groupedByComponent[componentSetId]
-    const compSet = figma.getNodeById(componentSetId) as ComponentSetNode
+
+    // Get component set based on mode
+    let compSet: ComponentSetNode | null = null
+    let componentName = ''
+
+    if (dataSource === 'anova') {
+      // For Anova mode, get the selected component set from the canvas
+      const selection = figma.currentPage.selection
+      const selectedCompSet = selection.find(node => node.type === 'COMPONENT_SET') as ComponentSetNode
+
+      if (!selectedCompSet) {
+        figma.notify('Please select a component set on the canvas to generate from Anova data')
+        return
+      }
+
+      compSet = selectedCompSet
+      componentName = anovaComponentName || compSet.name
+    } else {
+      // Figma Direct mode - use the ID
+      compSet = figma.getNodeById(componentSetId) as ComponentSetNode
+      if (!compSet) continue
+      componentName = compSet.name
+    }
+
     if (!compSet) continue
 
     // Add component name
@@ -125,7 +189,7 @@ async function generateStickerSheet(data: any) {
     await figma.loadFontAsync({ family: 'Inter', style: 'Semi Bold' })
     nameText.fontName = { family: 'Inter', style: 'Semi Bold' }
     nameText.fontSize = 18
-    nameText.characters = compSet.name
+    nameText.characters = componentName
     nameText.fills = [{ type: 'SOLID', color: { r: 0.2, g: 0.2, b: 0.2 } }]
     mainFrame.appendChild(nameText)
 
@@ -223,6 +287,8 @@ async function createInstance(compSet: ComponentSetNode, properties: any) {
   const baseComponent = compSet.children[0] as ComponentNode
   const instance = baseComponent.createInstance()
 
+  console.log('🔧 Creating instance with properties:', properties)
+
   // Set properties
   const propDefs = compSet.componentPropertyDefinitions
 
@@ -232,6 +298,9 @@ async function createInstance(compSet: ComponentSetNode, properties: any) {
     const cleanName = key.split('#')[0]
     propNameToKey[cleanName] = key
   }
+  
+  console.log('📋 Available Figma properties:', Object.keys(propNameToKey))
+  console.log('📋 Requested properties:', Object.keys(properties))
 
   // Try to set each property from the combination
   for (const propName in properties) {
@@ -682,4 +751,48 @@ async function createTable(compSet: ComponentSetNode, combinations: any[], rowPr
   }
 
   return tableFrame
+}
+
+async function generatePreviews(combinations: any[]) {
+  const selection = figma.currentPage.selection
+  console.log('Current selection:', selection.length, 'nodes')
+  
+  const compSet = selection.find(node => node.type === 'COMPONENT_SET') as ComponentSetNode
+
+  if (!compSet) {
+    console.error('No component set in selection. Selection:', selection.map(n => ({ type: n.type, name: n.name })))
+    throw new Error('No component set selected')
+  }
+  
+  console.log('Using component set:', compSet.name)
+
+  const previews: { [key: string]: string } = {}
+
+  for (const combo of combinations) {
+    try {
+      // Create instance with the combination's properties
+      const instance = await createInstance(compSet, combo.properties)
+
+      // Export as PNG with small size for thumbnail
+      const imageData = await instance.exportAsync({
+        format: 'PNG',
+        constraint: { type: 'SCALE', value: 0.5 }
+      })
+
+      // Convert to base64
+      const base64 = figma.base64Encode(imageData)
+
+      // Use variantName as key
+      previews[combo.variantName] = base64
+
+      // Clean up
+      instance.remove()
+    } catch (error) {
+      console.error('Error generating preview for', combo.variantName, error)
+      // Continue with other previews even if one fails
+    }
+  }
+
+  console.log('Generated', Object.keys(previews).length, 'previews out of', combinations.length, 'combinations')
+  return previews
 }

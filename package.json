@@ -16,7 +16,14 @@
     "main": "src/main.ts",
     "ui": "src/ui.tsx"
   },
-  "keywords": ["figma", "plugin", "components", "variants", "sticker-sheet", "design-system"],
+  "keywords": [
+    "figma",
+    "plugin",
+    "components",
+    "variants",
+    "sticker-sheet",
+    "design-system"
+  ],
   "author": "Artem Artemov",
   "license": "MIT",
   "type": "commonjs",
@@ -25,6 +32,10 @@
     "@create-figma-plugin/tsconfig": "^4.0.3",
     "@create-figma-plugin/ui": "^4.0.3",
     "@figma/plugin-typings": "^1.118.0",
+    "@types/js-yaml": "^4.0.9",
     "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.0"
   }
 }
