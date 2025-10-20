@@ -287,6 +287,8 @@ async function createInstance(compSet: ComponentSetNode, properties: any) {
   const baseComponent = compSet.children[0] as ComponentNode
   const instance = baseComponent.createInstance()
 
+  console.log('🔧 Creating instance with properties:', properties)
+
   // Set properties
   const propDefs = compSet.componentPropertyDefinitions
 
@@ -296,6 +298,9 @@ async function createInstance(compSet: ComponentSetNode, properties: any) {
     const cleanName = key.split('#')[0]
     propNameToKey[cleanName] = key
   }
+  
+  console.log('📋 Available Figma properties:', Object.keys(propNameToKey))
+  console.log('📋 Requested properties:', Object.keys(properties))
 
   // Try to set each property from the combination
   for (const propName in properties) {
