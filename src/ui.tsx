@@ -48,7 +48,7 @@ function Plugin() {
   const [selectedCombinations, setSelectedCombinations] = useState<{ [key: string]: boolean }>({})
   const [sortColumn, setSortColumn] = useState<string | null>(null)
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
-  const [isPropertiesCollapsed, setIsPropertiesCollapsed] = useState(false)
+  const [isPropertiesCollapsed, setIsPropertiesCollapsed] = useState(true)
   const [hoveredRow, setHoveredRow] = useState<string | null>(null)
   const [collapsedGroups, setCollapsedGroups] = useState<{ [key: string]: boolean }>({})
   const [activeFilters, setActiveFilters] = useState<{ [propName: string]: string | null }>({})
