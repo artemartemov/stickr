@@ -125,7 +125,7 @@ export default function () {
 }
 
 async function generateStickerSheet(data: any) {
-  const { dataSource, selectedCombinations, includeLightDark, anovaComponentName } = data
+  const { dataSource, selectedCombinations, includeLightDark, anovaComponentName, layoutConfig } = data
 
   if (selectedCombinations.length === 0) {
     figma.notify('No combinations selected')
@@ -209,12 +209,12 @@ async function generateStickerSheet(data: any) {
     modesContainer.fills = []
 
     // Create light mode section
-    const lightSection = await createModeSection(compSet, combos, false)
+    const lightSection = await createModeSection(compSet, combos, false, layoutConfig)
     modesContainer.appendChild(lightSection)
 
     // Create dark mode section if enabled
     if (includeLightDark) {
-      const darkSection = await createModeSection(compSet, combos, true)
+      const darkSection = await createModeSection(compSet, combos, true, layoutConfig)
       modesContainer.appendChild(darkSection)
     }
 
@@ -332,7 +332,7 @@ async function createInstance(compSet: ComponentSetNode, properties: any) {
   return instance
 }
 
-async function createModeSection(compSet: ComponentSetNode, combinations: any[], isDark: boolean) {
+async function createModeSection(compSet: ComponentSetNode, combinations: any[], isDark: boolean, layoutConfig?: any) {
   const sectionFrame = figma.createFrame()
   sectionFrame.name = isDark ? 'Dark Mode' : 'Light Mode'
   sectionFrame.layoutMode = 'VERTICAL'
@@ -360,13 +360,13 @@ async function createModeSection(compSet: ComponentSetNode, combinations: any[],
   sectionFrame.appendChild(modeTitle)
 
   // Create table with all combinations as columns
-  const table = await createSimpleTable(compSet, combinations, isDark)
+  const table = await createSimpleTable(compSet, combinations, isDark, layoutConfig)
   sectionFrame.appendChild(table)
 
   return sectionFrame
 }
 
-async function createSimpleTable(compSet: ComponentSetNode, combinations: any[], isDark: boolean) {
+async function createSimpleTable(compSet: ComponentSetNode, combinations: any[], isDark: boolean, layoutConfig?: any) {
   const tableFrame = figma.createFrame()
   tableFrame.name = 'Table'
   tableFrame.layoutMode = 'VERTICAL'
@@ -412,9 +412,27 @@ async function createSimpleTable(compSet: ComponentSetNode, combinations: any[],
     return tableFrame
   }
 
-  // Use first property for rows, remaining properties for columns
-  const rowProp = allProps[0]
-  const colProps = allProps.slice(1)
+  // Use layout config if provided, otherwise use first property for rows, remaining for columns
+  let rowProp: any
+  let colProps: any[]
+
+  if (layoutConfig && layoutConfig.rowProperty && layoutConfig.columnProperties && layoutConfig.columnProperties.length > 0) {
+    // Use user-configured layout
+    rowProp = allProps.find(p => p.name === layoutConfig.rowProperty)
+    colProps = layoutConfig.columnProperties
+      .map((colName: string) => allProps.find(p => p.name === colName))
+      .filter((p: any) => p !== undefined)
+
+    // If row property not found or no valid column properties, fall back to default
+    if (!rowProp || colProps.length === 0) {
+      rowProp = allProps[0]
+      colProps = allProps.slice(1)
+    }
+  } else {
+    // Default: Use first property for rows, remaining properties for columns
+    rowProp = allProps[0]
+    colProps = allProps.slice(1)
+  }
 
   console.log('Row property:', rowProp)
   console.log('Column properties:', colProps)

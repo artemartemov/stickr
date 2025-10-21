@@ -65,7 +65,12 @@ function Plugin() {
   const [componentDataSpec, setComponentDataSpec] = useState<AnovaSpec | null>(null)
   const [componentDataError, setComponentDataError] = useState<string>('')
   const [isComponentDataModalOpen, setIsComponentDataModalOpen] = useState(false)
-const [selectedGroupingProperty, setSelectedGroupingProperty] = useState<string | null>(null)
+  const [selectedGroupingProperty, setSelectedGroupingProperty] = useState<string | null>(null)
+
+  // Layout customization state
+  const [isLayoutModalOpen, setIsLayoutModalOpen] = useState(false)
+  const [layoutRowProperty, setLayoutRowProperty] = useState<string | null>(null)
+  const [layoutColumnProperties, setLayoutColumnProperties] = useState<string[]>([])
 
   // Listen for initial data from backend - set up handler immediately
   on('INIT_DATA', (data: any[]) => {
@@ -350,7 +355,11 @@ const [selectedGroupingProperty, setSelectedGroupingProperty] = useState<string 
       dataSource: dataSource,
       selectedCombinations: selected,
       includeLightDark: true,
-      anovaComponentName: anovaSpec?.title
+      anovaComponentName: anovaSpec?.title,
+      layoutConfig: {
+        rowProperty: layoutRowProperty,
+        columnProperties: layoutColumnProperties
+      }
     })
   }
 
@@ -1901,16 +1910,21 @@ const [selectedGroupingProperty, setSelectedGroupingProperty] = useState<string 
         </>
       )}
 
-      {/* Sticky Generate Button */}
+      {/* Sticky Generate Buttons */}
       <div style={{
         padding: '12px',
         background: 'var(--figma-color-bg)',
         borderTop: '1px solid var(--figma-color-border)',
         flexShrink: 0
       }}>
-        <Button fullWidth onClick={handleGenerate} disabled={!hasSelection}>
-          Generate Sticker Sheet
-        </Button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <Button fullWidth onClick={() => setIsLayoutModalOpen(true)} disabled={!hasSelection}>
+            Preview Layout
+          </Button>
+          <Button fullWidth secondary onClick={handleGenerate} disabled={!hasSelection}>
+            Generate
+          </Button>
+        </div>
       </div>
       </div>
 
@@ -1956,6 +1970,190 @@ const [selectedGroupingProperty, setSelectedGroupingProperty] = useState<string 
           </div>
         </Modal>
       )}
+
+      {/* Layout Preview Modal */}
+      {isLayoutModalOpen && (() => {
+        // Get all varying properties from selected combinations
+        const varyingProps = new Set<string>()
+        const selectedCombos = previewCombinations.filter((combo) => {
+          const key = getCombinationKey(combo)
+          return selectedCombinations[key] && combo.isValidCombination !== false
+        })
+
+        selectedCombos.forEach(combo => {
+          Object.keys(combo.properties).forEach(prop => varyingProps.add(prop))
+        })
+
+        const propArray = Array.from(varyingProps)
+
+        // Get unique values for each property
+        const propValues: { [key: string]: string[] } = {}
+        propArray.forEach(prop => {
+          const values = new Set<string>()
+          selectedCombos.forEach(combo => {
+            if (combo.properties[prop]) {
+              values.add(String(combo.properties[prop]))
+            }
+          })
+          propValues[prop] = Array.from(values).sort()
+        })
+
+        // Set defaults if not already set
+        const currentRowProp = layoutRowProperty || (propArray.length > 0 ? propArray[0] : null)
+        const currentColProps = layoutColumnProperties.length > 0
+          ? layoutColumnProperties
+          : propArray.filter(p => p !== currentRowProp)
+
+        const rowOptions: DropdownOption[] = propArray.map(prop => ({ value: prop, text: prop }))
+        const availableColProps = propArray.filter(p => p !== currentRowProp)
+
+        const handleColumnToggle = (prop: string) => {
+          if (currentColProps.includes(prop)) {
+            setLayoutColumnProperties(currentColProps.filter(p => p !== prop))
+          } else {
+            setLayoutColumnProperties([...currentColProps, prop])
+          }
+        }
+
+        return (
+          <Modal
+            open={isLayoutModalOpen}
+            title="Preview Sticker Sheet Layout"
+            onCloseButtonClick={() => setIsLayoutModalOpen(false)}
+          >
+            <div style={{ padding: '12px', maxHeight: '70vh', overflowY: 'auto' }}>
+              {propArray.length < 2 ? (
+                <div>
+                  <Muted>Need at least 2 varying properties to customize layout</Muted>
+                </div>
+              ) : (
+                <>
+                  <div style={{ marginBottom: '16px' }}>
+                    <Muted style={{ fontSize: '11px', marginBottom: '12px', display: 'block' }}>
+                      Choose how to organize your sticker sheet
+                    </Muted>
+
+                    {/* Row Property */}
+                    <div style={{ marginBottom: '16px' }}>
+                      <Muted style={{ fontSize: '10px', fontWeight: 600, marginBottom: '4px', display: 'block' }}>
+                        Rows
+                      </Muted>
+                      <Dropdown
+                        value={currentRowProp || ''}
+                        options={rowOptions}
+                        onChange={(e) => {
+                          const newRowProp = e.currentTarget.value
+                          setLayoutRowProperty(newRowProp)
+                          // Remove from columns if it was there
+                          setLayoutColumnProperties(currentColProps.filter(p => p !== newRowProp))
+                        }}
+                        style={{ fontSize: '11px' }}
+                      />
+                    </div>
+
+                    {/* Column Properties (Multi-select) */}
+                    <div style={{ marginBottom: '16px' }}>
+                      <Muted style={{ fontSize: '10px', fontWeight: 600, marginBottom: '8px', display: 'block' }}>
+                        Columns (select properties to include)
+                      </Muted>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        {availableColProps.map(prop => (
+                          <Checkbox
+                            key={prop}
+                            value={currentColProps.includes(prop)}
+                            onValueChange={() => handleColumnToggle(prop)}
+                          >
+                            <Text style={{ fontSize: '11px' }}>{prop}</Text>
+                          </Checkbox>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Visual Matrix Preview */}
+                    {currentRowProp && currentColProps.length > 0 && (
+                      <div style={{
+                        padding: '12px',
+                        background: 'var(--figma-color-bg-secondary)',
+                        borderRadius: '6px',
+                        border: '1px solid var(--figma-color-border)',
+                        marginBottom: '16px'
+                      }}>
+                        <div style={{ fontSize: '11px', fontWeight: 600, marginBottom: '8px' }}>
+                          Layout Preview
+                        </div>
+
+                        {/* Grid visualization */}
+                        <div style={{ fontSize: '10px', overflowX: 'auto' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                            <thead>
+                              <tr>
+                                <th style={{
+                                  padding: '4px 8px 4px 0',
+                                  textAlign: 'left',
+                                  fontWeight: 500,
+                                  fontSize: '10px',
+                                  color: 'var(--figma-color-text-tertiary)'
+                                }}>
+                                  {currentRowProp}
+                                </th>
+                                {currentColProps.map(colProp => (
+                                  <th key={colProp} style={{
+                                    padding: '4px 8px',
+                                    textAlign: 'left',
+                                    fontWeight: 500,
+                                    fontSize: '10px',
+                                    color: 'var(--figma-color-text-tertiary)'
+                                  }}>
+                                    {colProp}
+                                  </th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {propValues[currentRowProp]?.map((rowValue, idx) => (
+                                <tr key={idx}>
+                                  <td style={{
+                                    padding: '4px 8px 4px 0',
+                                    fontSize: '10px',
+                                    color: 'var(--figma-color-text)'
+                                  }}>
+                                    {rowValue}
+                                  </td>
+                                  {currentColProps.map(colProp => (
+                                    <td key={colProp} style={{
+                                      padding: '4px 8px',
+                                      fontSize: '10px',
+                                      color: 'var(--figma-color-text-tertiary)'
+                                    }}>
+                                      {propValues[colProp]?.join(', ') || '—'}
+                                    </td>
+                                  ))}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                    <Button secondary onClick={() => setIsLayoutModalOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={() => {
+                      handleGenerate()
+                      setIsLayoutModalOpen(false)
+                    }} disabled={!currentRowProp || currentColProps.length === 0}>
+                      Generate Sticker Sheet
+                    </Button>
+                  </div>
+                </>
+              )}
+            </div>
+          </Modal>
+        )
+      })()}
     </>
   )
 }
