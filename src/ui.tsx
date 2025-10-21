@@ -751,16 +751,28 @@ const [selectedGroupingProperty, setSelectedGroupingProperty] = useState<string 
       }
     }
   } else if (dataSource === 'figma-direct' && propertyOrder.length > 0) {
-    // Figma Direct mode: Use the first VARIANT property with 3+ values
+    // Figma Direct mode: Use the first VARIANT property with 2+ values that exists on all combinations
     console.log('🔍 Determining grouping property from propertyOrder:', propertyOrder)
     for (const propName of propertyOrder) {
       const prop = allProperties[propName]
       const valueCount = prop?.values?.length || 0
       console.log(`  - Checking "${propName}": type=${prop?.type}, values=${valueCount}`)
-      if (prop && prop.type === 'VARIANT' && valueCount > 2) {
-        groupingProperty = propName
-        console.log(`  ✓ Using "${propName}" for grouping`)
-        break
+
+      if (prop && prop.type === 'VARIANT' && valueCount > 1) {
+        // Verify this property exists on all combinations
+        const combosWithProperty = sortedCombinations.filter(combo =>
+          combo.properties && combo.properties[propName]
+        ).length
+        const coveragePercent = (combosWithProperty / sortedCombinations.length) * 100
+        console.log(`    Coverage: ${combosWithProperty}/${sortedCombinations.length} (${coveragePercent.toFixed(0)}%)`)
+
+        if (coveragePercent >= 100) {
+          groupingProperty = propName
+          console.log(`  ✓ Using "${propName}" for grouping`)
+          break
+        } else {
+          console.log(`  ✗ Skipping "${propName}" - not present on all combinations`)
+        }
       }
     }
   }
@@ -1170,10 +1182,20 @@ const [selectedGroupingProperty, setSelectedGroupingProperty] = useState<string 
                       .filter(([propName, prop]) => prop.enum && prop.enum.length > 0)
                       .map(([propName]) => propName)
                   } else if (dataSource === 'figma-direct' && propertyOrder.length > 0) {
-                    // Figma Direct mode: get VARIANT properties with 3+ values from allProperties
+                    // Figma Direct mode: get VARIANT properties with 2+ values that exist on all combinations
                     groupableProps = propertyOrder.filter(propName => {
                       const prop = allProperties[propName]
-                      return prop && prop.type === 'VARIANT' && prop.values && prop.values.length > 2
+                      if (!prop || prop.type !== 'VARIANT' || !prop.values || prop.values.length <= 1) {
+                        return false
+                      }
+
+                      // Check that this property exists on all combinations
+                      const combosWithProperty = sortedCombinations.filter(combo =>
+                        combo.properties && combo.properties[propName]
+                      ).length
+                      const coveragePercent = (combosWithProperty / sortedCombinations.length) * 100
+
+                      return coveragePercent >= 100
                     })
                   }
 
@@ -1182,7 +1204,7 @@ const [selectedGroupingProperty, setSelectedGroupingProperty] = useState<string 
 
                   const groupOptions: DropdownOption[] = groupableProps.map(propName => ({
                     value: propName,
-                    text: `Group by ${propName}`
+                    text: propName
                   }))
 
                   // Determine current grouping property
@@ -1193,16 +1215,17 @@ const [selectedGroupingProperty, setSelectedGroupingProperty] = useState<string 
 
                   return (
                     <div style={{ minWidth: '140px' }}>
-                        <Dropdown
-                          value={currentGrouping || ''}
-                          options={groupOptions}
-                          onChange={(e) => setSelectedGroupingProperty(e.currentTarget.value)}
-                          style={{
-                            fontSize: '11px',
-                            fontWeight: 500
-                          }}
-                        />
-                      </div>
+                      <Muted style={{ fontSize: '10px', fontWeight: 600, marginBottom: '4px', display: 'block' }}>Group by</Muted>
+                      <Dropdown
+                        value={currentGrouping || ''}
+                        options={groupOptions}
+                        onChange={(e) => setSelectedGroupingProperty(e.currentTarget.value)}
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 500
+                        }}
+                      />
+                    </div>
                   )
                 })()}
                 
@@ -1286,10 +1309,10 @@ const [selectedGroupingProperty, setSelectedGroupingProperty] = useState<string 
                           style={{ marginBottom: isCollapsed ? '8px' : '16px' }}
                         >
                           {/* Custom Minimal Disclosure Header */}
-                          <div 
-                            style={{ 
-                              display: 'flex', 
-                              alignItems: 'center', 
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
                               gap: '4px',
                               padding: '4px 0',
                               cursor: 'pointer',
@@ -1305,18 +1328,19 @@ const [selectedGroupingProperty, setSelectedGroupingProperty] = useState<string 
                               display: 'flex',
                               alignItems: 'center',
                               color: 'var(--figma-color-text-secondary)',
-                              marginRight: '2px'
+                              marginRight: '2px',
+                              pointerEvents: 'none'
                             }}>
                               <IconChevronDown16 />
                             </div>
-                            
+
                             {/* Title */}
-                            <Text style={{ fontWeight: 500, color: groupKey === '__INVALID__' ? 'var(--figma-color-text-secondary)' : undefined }}>
+                            <Text style={{ fontWeight: 500, color: groupKey === '__INVALID__' ? 'var(--figma-color-text-secondary)' : undefined, pointerEvents: 'none' }}>
                               {groupKey === '__INVALID__' ? 'Invalid Combinations' : `${groupingProperty}: ${groupKey}`}
                             </Text>
-                            
+
                             {/* Count */}
-                            <Muted style={{ fontSize: '11px', marginLeft: '2px' }}>
+                            <Muted style={{ fontSize: '11px', marginLeft: '2px', pointerEvents: 'none' }}>
                               ({groupSelectedCount} / {groupCombos.length})
                             </Muted>
                             
@@ -1417,7 +1441,7 @@ const [selectedGroupingProperty, setSelectedGroupingProperty] = useState<string 
                                                 {part}
                                               </span>
                                               {idx < parts.length - 1 && (
-                                                <span style={{ 
+                                                <span style={{
                                                   margin: '0 2px',
                                                   color: 'var(--figma-color-text-tertiary)',
                                                   fontSize: '10px'
@@ -1425,10 +1449,10 @@ const [selectedGroupingProperty, setSelectedGroupingProperty] = useState<string 
                                               )}
                                             </span>
                                           ))}
+                                          <span style={{ color: 'var(--figma-color-text-tertiary)', whiteSpace: 'nowrap', marginLeft: '2px' }}>
+                                            ({count} variant{count > 1 ? 's' : ''})
+                                          </span>
                                         </div>
-                                        <span style={{ color: 'var(--figma-color-text-tertiary)' }}>
-                                          ({count} variant{count > 1 ? 's' : ''})
-                                        </span>
                                       </div>
                                     ))
                                   })()}
@@ -1676,11 +1700,198 @@ const [selectedGroupingProperty, setSelectedGroupingProperty] = useState<string 
                       )
                     })
                   ) : (
-                    /* Fallback for no grouping */
-                    sortedCombinations.map((combo, index) => {
+                    /* Fallback for no grouping - render ungrouped items */
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+                    {sortedCombinations.map((combo, index) => {
                       const key = getCombinationKey(combo)
-                      return <div key={key}>No grouping available</div>
-                    })
+                      const isSelected = selectedCombinations[key] || false
+                      const isHovered = hoveredRow === key
+                      const previewImage = previews[combo.variantName]
+                      const isInvalid = combo.isValidCombination === false
+
+                      let bgColor = 'transparent'
+                      if (isInvalid) {
+                        bgColor = 'var(--figma-color-bg-disabled)'
+                      } else if (isSelected) {
+                        bgColor = 'var(--figma-color-bg-selected)'
+                      } else if (isHovered) {
+                        bgColor = 'var(--figma-color-bg-hover)'
+                      }
+
+                      return (
+                        <div
+                          key={index}
+                          style={{
+                            cursor: isInvalid ? 'not-allowed' : 'pointer',
+                            background: bgColor,
+                            borderRadius: '6px',
+                            padding: '12px',
+                            border: isInvalid
+                              ? '1px dashed var(--figma-color-border)'
+                              : isSelected
+                                ? '1px solid var(--figma-color-text-brand)'
+                                : '1px solid transparent',
+                            display: 'flex',
+                            gap: '12px',
+                            alignItems: 'flex-start',
+                            opacity: isInvalid ? 0.5 : 1,
+                            position: 'relative'
+                          }}
+                          onMouseEnter={() => !isInvalid && setHoveredRow(key)}
+                          onMouseLeave={() => setHoveredRow(null)}
+                          onClick={(e: any) => !isInvalid && handleCombinationToggle(key, index, e.shiftKey)}
+                        >
+                          {/* Thumbnail */}
+                          <div style={{
+                            width: '96px',
+                            height: '96px',
+                            flexShrink: 0,
+                            borderRadius: '6px',
+                            overflow: 'hidden',
+                            background: 'var(--figma-color-bg-tertiary)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            border: '1px solid var(--figma-color-border)'
+                          }}>
+                            {previewsLoading ? (
+                              <LoadingIndicator />
+                            ) : previewImage ? (
+                              <img
+                                src={`data:image/png;base64,${previewImage}`}
+                                alt={combo.variantName}
+                                style={{
+                                  width: '100%',
+                                  height: '100%',
+                                  objectFit: 'contain'
+                                }}
+                              />
+                            ) : (
+                              <Muted style={{ fontSize: '24px' }}>?</Muted>
+                            )}
+                          </div>
+
+                          {/* Properties */}
+                          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {/* Invalid Combination Badge */}
+                            {isInvalid && (
+                              <div style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                padding: '2px 6px',
+                                borderRadius: '3px',
+                                background: 'var(--figma-color-bg-tertiary)',
+                                alignSelf: 'flex-start'
+                              }}>
+                                <span style={{
+                                  fontSize: '10px',
+                                  fontWeight: 500,
+                                  color: 'var(--figma-color-text-tertiary)'
+                                }}>
+                                  Invalid
+                                </span>
+                              </div>
+                            )}
+
+                            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                            {combo.properties && Object.keys(combo.properties).length > 0 && (() => {
+                              // Separate boolean and variant properties
+                              const boolProps: [string, any][] = []
+                              const variantProps: [string, any][] = []
+
+                              Object.entries(combo.properties).forEach(([key, value]) => {
+                                // When ungrouped, show ALL properties (don't skip any)
+                                const strValue = String(value).toLowerCase()
+                                const isBool = strValue === 'true' || strValue === 'false'
+
+                                if (isBool) {
+                                  boolProps.push([key, value])
+                                } else {
+                                  variantProps.push([key, value])
+                                }
+                              })
+
+                              return (
+                                <>
+                                  {/* Variant Properties (Left) */}
+                                  {variantProps.length > 0 && (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: '0 0 auto' }}>
+                                      {variantProps.map(([key, value]) => (
+                                        <div
+                                          key={key}
+                                          style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            fontSize: '11px'
+                                          }}
+                                        >
+                                          <span style={{
+                                            color: 'var(--figma-color-text)',
+                                            fontWeight: 500,
+                                            padding: '2px 8px',
+                                            borderRadius: '3px',
+                                            background: 'var(--figma-color-bg-brand-tertiary)'
+                                          }}>
+                                            {String(value)}
+                                          </span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+
+                                  {/* Boolean Properties (Right) */}
+                                  {boolProps.length > 0 && (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginLeft: 'auto', alignItems: 'flex-end' }}>
+                                      {boolProps.map(([key, value]) => {
+                                        const strValue = String(value).toLowerCase()
+                                        const boolValue = strValue === 'true'
+
+                                        return (
+                                          <div
+                                            key={key}
+                                            style={{
+                                              display: 'flex',
+                                              alignItems: 'center',
+                                              gap: '6px',
+                                              fontSize: '11px'
+                                            }}
+                                          >
+                                            <span style={{
+                                              color: 'var(--figma-color-text-secondary)'
+                                            }}>
+                                              {key}
+                                            </span>
+                                            <span style={{
+                                              display: 'inline-flex',
+                                              alignItems: 'center',
+                                              padding: '2px',
+                                              borderRadius: '3px',
+                                              background: boolValue
+                                                ? 'var(--figma-color-bg-success)'
+                                                : 'var(--figma-color-bg-secondary)',
+                                              fontSize: '10px',
+                                              color: boolValue ? 'var(--figma-color-text-onbrand)' : 'var(--figma-color-text-tertiary)',
+                                              fontWeight: 600,
+                                              lineHeight: 1
+                                            }}>
+                                              {boolValue ? '✓' : '✗'}
+                                            </span>
+                                          </div>
+                                        )
+                                      })}
+                                    </div>
+                                  )}
+                                </>
+                              )
+                            })()}
+                            </div>
+
+                          </div>
+                        </div>
+                      )
+                    })}
+                    </div>
                   )}
                 </div>
               )}
