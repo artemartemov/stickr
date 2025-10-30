@@ -1,6 +1,6 @@
 import { emit, on, showUI } from '@create-figma-plugin/utilities'
 import { UI_CONFIG, SPACING, COLORS, BORDER_RADIUS, FONTS, FONT_SIZES, FRAME_DIMENSIONS, TIMING, EXPORT_SCALE } from './constants'
-import { parseBooleanString, isBooleanString, cleanPropertyName, delay } from './utils'
+import { parseBooleanString, isBooleanString, cleanPropertyName, delay, createFrame } from './utils'
 
 export default function () {
   showUI({ height: UI_CONFIG.HEIGHT, width: UI_CONFIG.WIDTH })
@@ -135,7 +135,7 @@ async function generateStickerSheet(data: any) {
   }
 
   // Create main container
-  const mainFrame = figma.createFrame()
+  const mainFrame = createFrame()
   mainFrame.name = 'Sticker Sheet'
   mainFrame.layoutMode = 'VERTICAL'
   mainFrame.primaryAxisSizingMode = 'AUTO'
@@ -194,7 +194,7 @@ async function generateStickerSheet(data: any) {
     mainFrame.appendChild(nameText)
 
     // Create container for light/dark modes
-    const modesContainer = figma.createFrame()
+    const modesContainer = createFrame()
     modesContainer.name = 'Modes Container'
     modesContainer.layoutMode = 'HORIZONTAL'
     modesContainer.primaryAxisSizingMode = 'AUTO'
@@ -329,7 +329,7 @@ async function createInstance(compSet: ComponentSetNode, properties: any) {
 
 async function createModeSection(compSet: ComponentSetNode, combinations: any[], isDark: boolean, layoutConfig?: any) {
   // Create the Frame for the mode section
-  const sectionFrame = figma.createFrame()
+  const sectionFrame = createFrame()
   sectionFrame.name = isDark ? 'Dark Mode' : 'Light Mode'
   sectionFrame.layoutMode = 'VERTICAL'
   sectionFrame.primaryAxisSizingMode = 'AUTO'
@@ -363,7 +363,7 @@ async function createModeSection(compSet: ComponentSetNode, combinations: any[],
 }
 
 async function createSimpleTable(compSet: ComponentSetNode, combinations: any[], isDark: boolean, layoutConfig?: any) {
-  const tableFrame = figma.createFrame()
+  const tableFrame = createFrame()
   tableFrame.name = 'Table'
   tableFrame.layoutMode = 'VERTICAL'
   tableFrame.primaryAxisSizingMode = 'AUTO'
@@ -388,7 +388,7 @@ async function createSimpleTable(compSet: ComponentSetNode, combinations: any[],
 
   if (allProps.length === 0) {
     // No variation - just show all instances in a row
-    const row = figma.createFrame()
+    const row = createFrame()
     row.layoutMode = 'HORIZONTAL'
     row.itemSpacing = SPACING.SMALL
     row.fills = []
@@ -461,7 +461,7 @@ async function createSimpleTable(compSet: ComponentSetNode, combinations: any[],
   })
 
   // Create header row
-  const headerRow = figma.createFrame()
+  const headerRow = createFrame()
   headerRow.name = 'Header Row'
   headerRow.layoutMode = 'HORIZONTAL'
   headerRow.itemSpacing = SPACING.SMALL
@@ -469,7 +469,7 @@ async function createSimpleTable(compSet: ComponentSetNode, combinations: any[],
   headerRow.paddingBottom = SPACING.TINY
 
   // Empty corner cell
-  const cornerCell = figma.createFrame()
+  const cornerCell = createFrame()
   cornerCell.resize(FRAME_DIMENSIONS.ROW_LABEL_WIDTH, FRAME_DIMENSIONS.SPACER_HEIGHT)
   cornerCell.fills = []
   headerRow.appendChild(cornerCell)
@@ -477,7 +477,7 @@ async function createSimpleTable(compSet: ComponentSetNode, combinations: any[],
   // Column headers
   for (let i = 0; i < columnCombos.length; i++) {
     const colCombo = columnCombos[i]
-    const headerContainer = figma.createFrame()
+    const headerContainer = createFrame()
     headerContainer.layoutMode = 'VERTICAL'
     headerContainer.primaryAxisSizingMode = 'FIXED'
     headerContainer.counterAxisSizingMode = 'AUTO'
@@ -520,14 +520,14 @@ async function createSimpleTable(compSet: ComponentSetNode, combinations: any[],
 
   // Create data rows
   for (const rowValue of rowValues) {
-    const dataRow = figma.createFrame()
+    const dataRow = createFrame()
     dataRow.name = `Row: ${rowValue}`
     dataRow.layoutMode = 'HORIZONTAL'
     dataRow.itemSpacing = SPACING.SMALL
     dataRow.fills = []
 
     // Row label
-    const rowLabelContainer = figma.createFrame()
+    const rowLabelContainer = createFrame()
     rowLabelContainer.resize(FRAME_DIMENSIONS.ROW_LABEL_WIDTH, instanceHeight)
     rowLabelContainer.layoutMode = 'VERTICAL'
     rowLabelContainer.primaryAxisAlignItems = 'CENTER'
@@ -557,7 +557,7 @@ async function createSimpleTable(compSet: ComponentSetNode, combinations: any[],
       })
 
       if (matchingCombo) {
-        const instanceContainer = figma.createFrame()
+        const instanceContainer = createFrame()
         instanceContainer.resize(instanceWidth, instanceHeight)
         instanceContainer.layoutMode = 'VERTICAL'
         instanceContainer.primaryAxisAlignItems = 'CENTER'
@@ -569,7 +569,7 @@ async function createSimpleTable(compSet: ComponentSetNode, combinations: any[],
         dataRow.appendChild(instanceContainer)
       } else {
         // Empty cell
-        const emptyCell = figma.createFrame()
+        const emptyCell = createFrame()
         emptyCell.resize(instanceWidth, instanceHeight)
         emptyCell.fills = []
         dataRow.appendChild(emptyCell)
@@ -583,7 +583,7 @@ async function createSimpleTable(compSet: ComponentSetNode, combinations: any[],
 }
 
 async function createTable(compSet: ComponentSetNode, combinations: any[], rowProp: any, colProps: any[], isDark: boolean) {
-  const tableFrame = figma.createFrame()
+  const tableFrame = createFrame()
   tableFrame.name = 'Table'
   tableFrame.layoutMode = 'VERTICAL'
   tableFrame.primaryAxisSizingMode = 'AUTO'
@@ -627,7 +627,7 @@ async function createTable(compSet: ComponentSetNode, combinations: any[], rowPr
   sampleInstance.remove()
 
   // Create header row
-  const headerRow = figma.createFrame()
+  const headerRow = createFrame()
   headerRow.name = 'Header Row'
   headerRow.layoutMode = 'HORIZONTAL'
   headerRow.primaryAxisSizingMode = 'AUTO'
@@ -637,7 +637,7 @@ async function createTable(compSet: ComponentSetNode, combinations: any[], rowPr
   headerRow.paddingBottom = SPACING.NORMAL
 
   // Empty corner cell for row labels
-  const cornerCell = figma.createFrame()
+  const cornerCell = createFrame()
   cornerCell.resize(FRAME_DIMENSIONS.ROW_LABEL_WIDTH_LARGE, FRAME_DIMENSIONS.SPACER_HEIGHT)
   cornerCell.fills = []
   headerRow.appendChild(cornerCell)
@@ -647,7 +647,7 @@ async function createTable(compSet: ComponentSetNode, combinations: any[], rowPr
   let colIndex = 1
   for (const colCombo of columnCombos) {
     // Container for header to match instance width
-    const headerContainer = figma.createFrame()
+    const headerContainer = createFrame()
     headerContainer.layoutMode = 'VERTICAL'
     headerContainer.resize(instanceWidth, 1)
     headerContainer.primaryAxisSizingMode = 'FIXED'
@@ -685,7 +685,7 @@ async function createTable(compSet: ComponentSetNode, combinations: any[], rowPr
   )).sort()
 
   for (const rowValue of uniqueRowValues) {
-    const dataRow = figma.createFrame()
+    const dataRow = createFrame()
     dataRow.name = `Row: ${rowValue}`
     dataRow.layoutMode = 'HORIZONTAL'
     dataRow.primaryAxisSizingMode = 'AUTO'
@@ -694,7 +694,7 @@ async function createTable(compSet: ComponentSetNode, combinations: any[], rowPr
     dataRow.fills = []
 
     // Row label
-    const rowLabelContainer = figma.createFrame()
+    const rowLabelContainer = createFrame()
     rowLabelContainer.resize(FRAME_DIMENSIONS.ROW_LABEL_WIDTH_LARGE, instanceHeight)
     rowLabelContainer.layoutMode = 'VERTICAL'
     rowLabelContainer.primaryAxisAlignItems = 'CENTER'
@@ -726,7 +726,7 @@ async function createTable(compSet: ComponentSetNode, combinations: any[], rowPr
       })
 
       if (matchingCombo) {
-        const instanceContainer = figma.createFrame()
+        const instanceContainer = createFrame()
         instanceContainer.resize(instanceWidth, instanceHeight)
         instanceContainer.layoutMode = 'VERTICAL'
         instanceContainer.primaryAxisAlignItems = 'CENTER'
@@ -738,7 +738,7 @@ async function createTable(compSet: ComponentSetNode, combinations: any[], rowPr
         dataRow.appendChild(instanceContainer)
       } else {
         // Empty cell with same width as instances
-        const emptyCell = figma.createFrame()
+        const emptyCell = createFrame()
         emptyCell.resize(instanceWidth, instanceHeight)
         emptyCell.fills = []
         dataRow.appendChild(emptyCell)
