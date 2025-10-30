@@ -1,12 +1,9 @@
 import { emit, on } from '@create-figma-plugin/utilities'
 import {
-  Button,
-  Checkbox,
   Container,
   render,
   VerticalSpace,
   SelectableItem,
-  Text,
   IconBoolean16,
   IconInstance16,
   IconComponentProperty16,
@@ -16,8 +13,6 @@ import {
   Dropdown,
   DropdownOption,
   TextboxMultiline,
-  Modal,
-  IconButton,
   IconPlus16,
   IconClose16
 } from '@create-figma-plugin/ui'
@@ -26,6 +21,8 @@ import { useState, useEffect } from 'preact/hooks'
 import * as yaml from 'js-yaml'
 import type { AnovaSpec } from './types/anova'
 import { filterValidVariants } from './types/anova'
+import { themeStyles } from './styles/theme'
+import { Button, Checkbox, IconButton, Text, Modal, Toggle } from './components'
 
 type DataSource = 'figma-direct' | 'anova'
 
@@ -819,6 +816,7 @@ function Plugin() {
 
   return (
     <>
+      <style dangerouslySetInnerHTML={{ __html: themeStyles }} />
       <style>
         {`
           @keyframes spin {
@@ -898,12 +896,11 @@ function Plugin() {
             {anovaSpec && (
               <>
                 <div style={{
-                  fontFamily: 'var(--text-body-large-strong-font-family)',
-                  fontSize: 'var(--text-body-large-strong-font-size)',
-                  fontWeight: 600,
-                  letterSpacing: 'var(--text-body-large-strong-letter-spacing)',
-                  lineHeight: 'var(--text-body-large-strong-line-height)',
-                  color: 'var(--figma-color-text)'
+                  fontSize: 'var(--type-heading-section-fontSize)',
+                fontWeight: 'var(--type-heading-section-fontWeight)',
+                letterSpacing: 'var(--type-heading-section-letterSpacing)',
+                textTransform: 'var(--type-heading-section-textTransform)',
+                color: 'var(--text-primary)'
                 }}>
                   {anovaSpec.title}
                 </div>
@@ -963,12 +960,11 @@ function Plugin() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <div style={{ 
-                fontFamily: 'var(--text-body-large-strong-font-family)',
-                fontSize: 'var(--text-body-large-strong-font-size)',
-                fontWeight: 600,
-                letterSpacing: 'var(--text-body-large-strong-letter-spacing)',
-                lineHeight: 'var(--text-body-large-strong-line-height)',
-                color: 'var(--figma-color-text)'
+                fontSize: 'var(--type-heading-section-fontSize)',
+                fontWeight: 'var(--type-heading-section-fontWeight)',
+                letterSpacing: 'var(--type-heading-section-letterSpacing)',
+                textTransform: 'var(--type-heading-section-textTransform)',
+                color: 'var(--text-primary)'
               }}>
                 Properties
               </div>
@@ -1062,12 +1058,11 @@ function Plugin() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <div style={{
-                    fontFamily: 'var(--text-body-large-strong-font-family)',
-                    fontSize: 'var(--text-body-large-strong-font-size)',
-                    fontWeight: 600,
-                    letterSpacing: 'var(--text-body-large-strong-letter-spacing)',
-                    lineHeight: 'var(--text-body-large-strong-line-height)',
-                    color: 'var(--figma-color-text)'
+                    fontSize: 'var(--type-heading-section-fontSize)',
+                fontWeight: 'var(--type-heading-section-fontWeight)',
+                letterSpacing: 'var(--type-heading-section-letterSpacing)',
+                textTransform: 'var(--type-heading-section-textTransform)',
+                color: 'var(--text-primary)'
                   }}>
                     Preview
                   </div>
@@ -1173,7 +1168,7 @@ function Plugin() {
                   </>
                 )}
                 </div>
-                <Checkbox
+                <Toggle
                   value={(() => {
                     const validCombinationKeys = sortedCombinations
                       .filter((c: any) => c.isValidCombination !== false)
@@ -1182,8 +1177,8 @@ function Plugin() {
                   })()}
                   onValueChange={handleSelectAll}
                 >
-                  <Text>Select All</Text>
-                </Checkbox>
+                  Select All
+                </Toggle>
               </div>
 
               {/* Second Row: Filtering and Sorting Controls */}
@@ -1232,7 +1227,7 @@ function Plugin() {
 
                   return (
                     <div style={{ minWidth: '140px' }}>
-                      <Muted style={{ fontSize: '10px', fontWeight: 600, marginBottom: '4px', display: 'block' }}>Group by</Muted>
+                      <Muted style={{ fontSize: 'var(--section-label-fontSize)', fontWeight: 'var(--section-label-fontWeight)', letterSpacing: 'var(--section-label-letterSpacing)', textTransform: 'var(--section-label-textTransform)', marginBottom: '4px', display: 'block' }}>Group by</Muted>
                       <Dropdown
                         value={currentGrouping || ''}
                         options={groupOptions}
@@ -1361,18 +1356,17 @@ function Plugin() {
                               ({groupSelectedCount} / {groupCombos.length})
                             </Muted>
                             
-                            {/* Select All Checkbox */}
+                            {/* Select All Toggle */}
                             {groupKey !== '__INVALID__' && (
-                              <div style={{ marginLeft: 'auto' }}>
-                                <Checkbox
+                              <div style={{ marginLeft: 'auto' }} onClick={(e: any) => e.stopPropagation()}>
+                                <Toggle
                                   value={groupSelectedCount === groupCombos.length}
                                   onValueChange={(e: any) => {
                                     handleGroupSelectAll(groupCombos)
                                   }}
-                                  onClick={(e: any) => e.stopPropagation()}
                                 >
-                                  <Text>Select {groupKey}</Text>
-                                </Checkbox>
+                                  Select {groupKey}
+                                </Toggle>
                               </div>
                             )}
                           </div>
@@ -1388,9 +1382,11 @@ function Plugin() {
                               }}>
                                 <div style={{
                                   fontSize: '11px',
-                                  fontWeight: 600,
-                                  color: 'var(--figma-color-text)',
-                                  marginBottom: '8px'
+                                  fontWeight: 'var(--section-label-fontWeight)',
+                                  letterSpacing: 'var(--section-label-letterSpacing)',
+                                  color: 'var(--text-primary)',
+                                  marginBottom: '8px',
+                                  textTransform: 'var(--section-label-textTransform)'
                                 }}>
                                   Why these combinations are invalid:
                                 </div>
@@ -1926,7 +1922,7 @@ function Plugin() {
         flexShrink: 0
       }}>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <Button fullWidth onClick={() => setIsLayoutModalOpen(true)} disabled={!hasSelection}>
+          <Button fullWidth style={{ fontSize: '12px' }} onClick={() => setIsLayoutModalOpen(true)} disabled={!hasSelection}>
             Preview Layout
           </Button>
           <Button fullWidth secondary onClick={() => handleGenerate()} disabled={!hasSelection}>
@@ -1939,9 +1935,9 @@ function Plugin() {
       {/* Component Data Modal */}
       {isComponentDataModalOpen && (
         <Modal
-          open={isComponentDataModalOpen}
+          isOpen={isComponentDataModalOpen}
           title="Add Component Data"
-          onCloseButtonClick={() => setIsComponentDataModalOpen(false)}
+          onClose={() => setIsComponentDataModalOpen(false)}
         >
           <div style={{ padding: '12px' }}>
             <div style={{ marginBottom: '12px' }}>
@@ -2050,9 +2046,9 @@ function Plugin() {
 
         return (
           <Modal
-            open={isLayoutModalOpen}
-            title="Configure Layout"
-            onCloseButtonClick={() => setIsLayoutModalOpen(false)}
+            isOpen={isLayoutModalOpen}
+          title="Layout Preview & Cell Exclusion"
+          onClose={() => setIsLayoutModalOpen(false)}
           >
             <div style={{
               padding: '16px',
@@ -2146,7 +2142,7 @@ function Plugin() {
                         border: '1px solid var(--figma-color-border)'
                       }}>
                         <div style={{ marginBottom: '12px' }}>
-                          <Text style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: '4px' }}>
+                          <Text style={{ fontSize: '11px', fontWeight: 'var(--section-label-fontWeight)', display: 'block', textTransform: 'var(--section-label-textTransform)', letterSpacing: 'var(--section-label-letterSpacing)', marginBottom: '4px' }}>
                             Layout Preview
                           </Text>
                           <Muted style={{ fontSize: '10px' }}>
@@ -2431,7 +2427,7 @@ function Plugin() {
                     <Button secondary onClick={() => setIsLayoutModalOpen(false)}>
                       Cancel
                     </Button>
-                    <Button onClick={() => {
+                    <Button style={{ fontSize: '12px' }} onClick={() => {
                       if (!currentRowProp) return
 
                       // Filter out excluded combinations before generating
