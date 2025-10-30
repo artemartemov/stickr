@@ -1,5 +1,6 @@
 import { emit, on, showUI } from '@create-figma-plugin/utilities'
 import { UI_CONFIG, SPACING, COLORS, BORDER_RADIUS, FONTS, FONT_SIZES, FRAME_DIMENSIONS, TIMING, EXPORT_SCALE } from './constants'
+import { parseBooleanString, isBooleanString, cleanPropertyName, delay } from './utils'
 
 export default function () {
   showUI({ height: UI_CONFIG.HEIGHT, width: UI_CONFIG.WIDTH })
@@ -42,7 +43,7 @@ export default function () {
         figma.viewport.scrollAndZoomIntoView([allNodes[0] as SceneNode])
         
         // Small delay to ensure selection is registered
-        await new Promise(resolve => setTimeout(resolve, TIMING.SELECTION_DELAY_MS))
+        await delay(TIMING.SELECTION_DELAY_MS)
         
         // Send updated selection data to UI
         const componentData = getComponentData()
@@ -75,7 +76,7 @@ export default function () {
 
     // Use Object.keys to preserve order
     Object.keys(propDefs).forEach(key => {
-      const propName = key.split('#')[0]
+      const propName = cleanPropertyName(key)
       const prop = propDefs[key]
 
       if (!properties[propName]) {
@@ -268,7 +269,7 @@ function analyzeVaryingProperties(combinations: any[]): any[] {
       let type = 'OTHER'
 
       // Check if all values are booleans (true/false strings)
-      if (values.every(v => String(v).toLowerCase() === 'true' || String(v).toLowerCase() === 'false')) {
+      if (values.every(v => isBooleanString(v))) {
         type = 'BOOLEAN'
       } else {
         type = 'VARIANT'
@@ -302,7 +303,7 @@ async function createInstance(compSet: ComponentSetNode, properties: any) {
   // Create a map of cleaned property names to actual keys
   const propNameToKey: any = {}
   for (const key in propDefs) {
-    const cleanName = key.split('#')[0]
+    const cleanName = cleanPropertyName(key)
     propNameToKey[cleanName] = key
   }
 
@@ -314,12 +315,7 @@ async function createInstance(compSet: ComponentSetNode, properties: any) {
     if (matchingKey) {
       try {
         // Convert boolean strings to actual booleans if needed
-        let valueToSet = propValue
-        if (String(propValue).toLowerCase() === 'true') {
-          valueToSet = true
-        } else if (String(propValue).toLowerCase() === 'false') {
-          valueToSet = false
-        }
+        const valueToSet = parseBooleanString(propValue)
 
         instance.setProperties({ [matchingKey]: valueToSet })
       } catch (e) {
