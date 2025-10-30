@@ -1,3 +1,589 @@
-var O=Object.defineProperty,j=Object.defineProperties,G=Object.getOwnPropertyDescriptor,W=Object.getOwnPropertyDescriptors,Z=Object.getOwnPropertyNames,L=Object.getOwnPropertySymbols;var F=Object.prototype.hasOwnProperty,X=Object.prototype.propertyIsEnumerable;var v=(o,e,t)=>e in o?O(o,e,{enumerable:!0,configurable:!0,writable:!0,value:t}):o[e]=t,z=(o,e)=>{for(var t in e||(e={}))F.call(e,t)&&v(o,t,e[t]);if(L)for(var t of L(e))X.call(e,t)&&v(o,t,e[t]);return o},V=(o,e)=>j(o,W(e));var R=(o,e)=>()=>(o&&(e=o(o=0)),e);var K=(o,e)=>{for(var t in e)O(o,t,{get:e[t],enumerable:!0})},q=(o,e,t,n)=>{if(e&&typeof e=="object"||typeof e=="function")for(let a of Z(e))!F.call(o,a)&&a!==t&&O(o,a,{get:()=>e[a],enumerable:!(n=G(e,a))||n.enumerable});return o};var J=o=>q(O({},"__esModule",{value:!0}),o);function E(o,e){let t=`${_}`;return _+=1,I[t]={handler:e,name:o},function(){delete I[t]}}function D(o,e){let t=!1;for(let n in I)I[n].name===o&&(I[n].handler.apply(null,e),t=!0);if(t===!1)throw new Error(`No event handler with name \`${o}\``)}var I,_,N,B=R(()=>{I={},_=0;N=typeof window=="undefined"?function(o,...e){figma.ui.postMessage([o,...e])}:function(o,...e){window.parent.postMessage({pluginMessage:[o,...e]},"*")};typeof window=="undefined"?figma.ui.onmessage=function(o){if(!Array.isArray(o))return;let[e,...t]=o;typeof e=="string"&&D(e,t)}:window.onmessage=function(o){if(typeof o.data.pluginMessage=="undefined")return;let e=o.data.pluginMessage;if(!Array.isArray(e))return;let[t,...n]=o.data.pluginMessage;typeof t=="string"&&D(t,n)}});function M(o,e){if(typeof __html__=="undefined")throw new Error("No UI defined");let t=`<div id="create-figma-plugin"></div><script>document.body.classList.add('theme-${figma.editorType}');const __FIGMA_COMMAND__='${typeof figma.command=="undefined"?"":figma.command}';const __SHOW_UI_DATA__=${JSON.stringify(typeof e=="undefined"?{}:e)};${__html__}</script>`;figma.showUI(t,V(z({},o),{themeColors:typeof o.themeColors=="undefined"?!0:o.themeColors}))}var U=R(()=>{});var P=R(()=>{B();U()});var $={};K($,{default:()=>Y});function Y(){M({height:720,width:480}),E("GENERATE_STICKER_SHEET",async t=>{try{console.log("Generating sticker sheet...",t),await Q(t),figma.notify("Sticker sheet generated successfully!")}catch(n){console.error("Error:",n),figma.notify("Error generating sticker sheet")}}),E("GENERATE_PREVIEWS",async t=>{try{console.log("Generating previews for",t.combinations.length,"combinations");let n=await te(t.combinations);N("PREVIEWS_READY",n)}catch(n){console.error("Error generating previews:",n),N("PREVIEWS_ERROR",{error:String(n)})}}),E("SELECT_COMPONENT_BY_NAME",async t=>{try{let n=figma.currentPage.findAll(a=>a.type==="COMPONENT_SET"&&a.name===t);if(n.length>0){figma.currentPage.selection=[n[0]],figma.viewport.scrollAndZoomIntoView([n[0]]),await new Promise(r=>setTimeout(r,50));let a=o();N("INIT_DATA",a),console.log("Component selected:",t)}else console.log("No component found with name:",t)}catch(n){console.error("Error selecting component:",n)}});function o(){let t=[],n=figma.currentPage.selection;return n.length>0&&(t=n.filter(a=>a.type==="COMPONENT_SET")),t.map(a=>{let r={},i=a.componentPropertyDefinitions||{};Object.keys(i).forEach(d=>{let c=d.split("#")[0],g=i[d];r[c]||(r[c]={type:g.type,values:[]}),g.type==="VARIANT"&&g.variantOptions?r[c].values=g.variantOptions:g.type==="BOOLEAN"&&(r[c].values=["true","false"])});let l=Object.keys(r).sort((d,c)=>{let g={VARIANT:0,BOOLEAN:1,INSTANCE_SWAP:2,TEXT:3},C=r[d].type,A=r[c].type,y=g[C]!==void 0?g[C]:999,h=g[A]!==void 0?g[A]:999;return y!==h?y-h:d.localeCompare(c)});return{id:a.id,name:a.name,properties:r,propertyOrder:l,variantCount:a.children.length}})}let e=o();N("INIT_DATA",e),figma.on("selectionchange",()=>{let t=o();N("INIT_DATA",t)})}async function Q(o){let{dataSource:e,selectedCombinations:t,includeLightDark:n,anovaComponentName:a}=o;if(t.length===0){figma.notify("No combinations selected");return}let r=figma.createFrame();r.name="Sticker Sheet",r.layoutMode="VERTICAL",r.primaryAxisSizingMode="AUTO",r.counterAxisSizingMode="AUTO",r.itemSpacing=0,r.paddingTop=32,r.paddingBottom=32,r.paddingLeft=32,r.paddingRight=32,r.fills=[{type:"SOLID",color:{r:.98,g:.98,b:.98}}],r.cornerRadius=8;let i={};for(let l of t)i[l.componentSetId]||(i[l.componentSetId]=[]),i[l.componentSetId].push(l);for(let l in i){let d=i[l],c=null,g="";if(e==="anova"){let p=figma.currentPage.selection.find(m=>m.type==="COMPONENT_SET");if(!p){figma.notify("Please select a component set on the canvas to generate from Anova data");return}c=p,g=a||c.name}else{if(c=figma.getNodeById(l),!c)continue;g=c.name}if(!c)continue;let C=figma.createText();await figma.loadFontAsync({family:"Inter",style:"Semi Bold"}),C.fontName={family:"Inter",style:"Semi Bold"},C.fontSize=18,C.characters=g,C.fills=[{type:"SOLID",color:{r:.2,g:.2,b:.2}}],r.appendChild(C);let A=figma.createFrame();A.resize(1,16),A.fills=[],r.appendChild(A);let y=figma.createFrame();y.name="Modes Container",y.layoutMode="HORIZONTAL",y.primaryAxisSizingMode="AUTO",y.counterAxisSizingMode="AUTO",y.itemSpacing=24,y.fills=[];let h=await H(c,d,!1);if(y.appendChild(h),n){let s=await H(c,d,!0);y.appendChild(s)}r.appendChild(y);let x=figma.createFrame();x.resize(1,24),x.fills=[],r.appendChild(x)}figma.currentPage.selection=[r],figma.viewport.scrollAndZoomIntoView([r])}function ee(o){if(o.length===0)return[];let e={},t={},n=o[0];for(let r of o)for(let i in r.properties)e[i]||(e[i]=new Set),e[i].add(r.properties[i]);let a=[];for(let r in e)if(e[r].size>1){let i=Array.from(e[r]),l="OTHER";i.every(d=>String(d).toLowerCase()==="true"||String(d).toLowerCase()==="false")?l="BOOLEAN":l="VARIANT",a.push({name:r,values:i,type:l})}return a.sort((r,i)=>r.type==="VARIANT"&&i.type!=="VARIANT"?-1:r.type!=="VARIANT"&&i.type==="VARIANT"?1:r.name.localeCompare(i.name)),a}async function b(o,e){let n=o.children[0].createInstance();console.log("\u{1F527} Creating instance with properties:",e);let a=o.componentPropertyDefinitions,r={};for(let i in a){let l=i.split("#")[0];r[l]=i}console.log("\u{1F4CB} Available Figma properties:",Object.keys(r)),console.log("\u{1F4CB} Requested properties:",Object.keys(e));for(let i in e){let l=e[i],d=r[i];if(d)try{let c=l;String(l).toLowerCase()==="true"?c=!0:String(l).toLowerCase()==="false"&&(c=!1),n.setProperties({[d]:c}),console.log("\u2713 Set property:",i,"=",c)}catch(c){console.log("\u2717 Could not set property:",i,"=",l,"Error:",c)}else console.log("\u2717 No matching key found for property:",i,"Available keys:",Object.keys(r))}return n}async function H(o,e,t){let n=figma.createFrame();n.name=t?"Dark Mode":"Light Mode",n.layoutMode="VERTICAL",n.primaryAxisSizingMode="AUTO",n.counterAxisSizingMode="AUTO",n.itemSpacing=16,n.paddingTop=24,n.paddingBottom=24,n.paddingLeft=24,n.paddingRight=24,n.cornerRadius=8,n.fills=t?[{type:"SOLID",color:{r:.18,g:.18,b:.18}}]:[{type:"SOLID",color:{r:1,g:1,b:1}}];let a=figma.createText();await figma.loadFontAsync({family:"Inter",style:"Medium"}),a.fontName={family:"Inter",style:"Medium"},a.fontSize=14,a.characters=t?"Dark Mode":"Light Mode",a.fills=t?[{type:"SOLID",color:{r:1,g:1,b:1}}]:[{type:"SOLID",color:{r:.2,g:.2,b:.2}}],n.appendChild(a);let r=await oe(o,e,t);return n.appendChild(r),n}async function oe(o,e,t){let n=figma.createFrame();if(n.name="Table",n.layoutMode="VERTICAL",n.primaryAxisSizingMode="AUTO",n.counterAxisSizingMode="AUTO",n.itemSpacing=8,n.fills=[],e.length===0)return n;console.log("=== createSimpleTable DEBUG ==="),console.log("Number of combinations:",e.length),console.log("First combination:",e[0]),console.log("All combinations:",e.map(s=>s.properties));let a=await b(o,e[0].properties),r=a.width,i=a.height;a.remove(),await figma.loadFontAsync({family:"Inter",style:"Semi Bold"}),await figma.loadFontAsync({family:"Inter",style:"Regular"});let l=ee(e);if(console.log("Varying properties found:",l),console.log("Property types:",l.map(s=>({name:s.name,type:s.type,values:s.values}))),l.length===0){let s=figma.createFrame();s.layoutMode="HORIZONTAL",s.itemSpacing=12,s.fills=[];for(let p of e){let m=await b(o,p.properties);s.appendChild(m)}return n.appendChild(s),n}let d=l[0],c=l.slice(1);console.log("Row property:",d),console.log("Column properties:",c);let g=[],C=new Set;for(let s of e){let p=String(s.properties[d.name]);C.has(p)||(C.add(p),g.push(p))}let A=[],y=new Set;for(let s of e){let p={};for(let f of c)p[f.name]=s.properties[f.name];let m=JSON.stringify(p);y.has(m)||(y.add(m),A.push(p))}A.sort((s,p)=>{for(let m of c){let f=String(s[m.name]),S=String(p[m.name]);if(f!==S)return f.localeCompare(S)}return 0}),console.log("Column combinations:",A),console.log("Number of columns:",A.length);let h=figma.createFrame();h.name="Header Row",h.layoutMode="HORIZONTAL",h.itemSpacing=12,h.fills=[],h.paddingBottom=8;let x=figma.createFrame();x.resize(100,1),x.fills=[],h.appendChild(x);for(let s=0;s<A.length;s++){let p=A[s],m=figma.createFrame();m.layoutMode="VERTICAL",m.primaryAxisSizingMode="FIXED",m.counterAxisSizingMode="AUTO",m.primaryAxisAlignItems="CENTER",m.fills=[];let f=figma.createText();f.fontName={family:"Inter",style:"Semi Bold"},f.fontSize=10,f.textAlignHorizontal="CENTER";let S=[];if(c.length>0)for(let T of c){let u=String(p[T.name]);S.push(`${T.name}: (${s+1}) ${u}`)}else S.push(`(${s+1})`);f.characters=S.join(`
-`),f.fills=t?[{type:"SOLID",color:{r:.6,g:.6,b:.6}}]:[{type:"SOLID",color:{r:.5,g:.5,b:.5}}],m.appendChild(f),m.resize(Math.max(r,f.width+8),f.height+8),console.log(`Header ${s}: "${f.characters}" - size: ${m.width}x${m.height}`),h.appendChild(m)}n.appendChild(h);for(let s of g){let p=figma.createFrame();p.name=`Row: ${s}`,p.layoutMode="HORIZONTAL",p.itemSpacing=12,p.fills=[];let m=figma.createFrame();m.resize(100,i),m.layoutMode="VERTICAL",m.primaryAxisAlignItems="CENTER",m.counterAxisAlignItems="CENTER",m.fills=[];let f=figma.createText();f.fontName={family:"Inter",style:"Regular"},f.fontSize=11,f.characters=`${d.name}:
-${s}`,f.textAlignHorizontal="CENTER",f.fills=t?[{type:"SOLID",color:{r:.8,g:.8,b:.8}}]:[{type:"SOLID",color:{r:.3,g:.3,b:.3}}],m.appendChild(f),p.appendChild(m);for(let S of A){let T=e.find(u=>{if(String(u.properties[d.name])!==s)return!1;for(let w of c)if(String(u.properties[w.name])!==String(S[w.name]))return!1;return!0});if(T){let u=figma.createFrame();u.resize(r,i),u.layoutMode="VERTICAL",u.primaryAxisAlignItems="CENTER",u.counterAxisAlignItems="CENTER",u.fills=[];let w=await b(o,T.properties);u.appendChild(w),p.appendChild(u)}else{let u=figma.createFrame();u.resize(r,i),u.fills=[],p.appendChild(u)}}n.appendChild(p)}return n}async function te(o){let e=figma.currentPage.selection;console.log("Current selection:",e.length,"nodes");let t=e.find(a=>a.type==="COMPONENT_SET");if(!t)throw console.error("No component set in selection. Selection:",e.map(a=>({type:a.type,name:a.name}))),new Error("No component set selected");console.log("Using component set:",t.name);let n={};for(let a of o)try{let r=await b(t,a.properties),i=await r.exportAsync({format:"PNG",constraint:{type:"SCALE",value:.5}}),l=figma.base64Encode(i);n[a.variantName]=l,r.remove()}catch(r){console.error("Error generating preview for",a.variantName,r)}return console.log("Generated",Object.keys(n).length,"previews out of",o.length,"combinations"),n}var k=R(()=>{"use strict";P()});var ne={"src/main.ts--default":(k(),J($)).default},re="src/main.ts--default";ne[re]();
+var __defProp = Object.defineProperty;
+var __defProps = Object.defineProperties;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+var __getOwnPropDescs = Object.getOwnPropertyDescriptors;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __getOwnPropSymbols = Object.getOwnPropertySymbols;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __propIsEnum = Object.prototype.propertyIsEnumerable;
+var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
+var __spreadValues = (a, b) => {
+  for (var prop in b || (b = {}))
+    if (__hasOwnProp.call(b, prop))
+      __defNormalProp(a, prop, b[prop]);
+  if (__getOwnPropSymbols)
+    for (var prop of __getOwnPropSymbols(b)) {
+      if (__propIsEnum.call(b, prop))
+        __defNormalProp(a, prop, b[prop]);
+    }
+  return a;
+};
+var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
+var __esm = (fn, res) => function __init() {
+  return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+};
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
+var __copyProps = (to, from, except, desc) => {
+  if (from && typeof from === "object" || typeof from === "function") {
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+  }
+  return to;
+};
+var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+
+// node_modules/@create-figma-plugin/utilities/lib/events.js
+function on(name, handler) {
+  const id = `${currentId}`;
+  currentId += 1;
+  eventHandlers[id] = { handler, name };
+  return function() {
+    delete eventHandlers[id];
+  };
+}
+function invokeEventHandler(name, args) {
+  let invoked = false;
+  for (const id in eventHandlers) {
+    if (eventHandlers[id].name === name) {
+      eventHandlers[id].handler.apply(null, args);
+      invoked = true;
+    }
+  }
+  if (invoked === false) {
+    throw new Error(`No event handler with name \`${name}\``);
+  }
+}
+var eventHandlers, currentId, emit;
+var init_events = __esm({
+  "node_modules/@create-figma-plugin/utilities/lib/events.js"() {
+    eventHandlers = {};
+    currentId = 0;
+    emit = typeof window === "undefined" ? function(name, ...args) {
+      figma.ui.postMessage([name, ...args]);
+    } : function(name, ...args) {
+      window.parent.postMessage({
+        pluginMessage: [name, ...args]
+      }, "*");
+    };
+    if (typeof window === "undefined") {
+      figma.ui.onmessage = function(args) {
+        if (!Array.isArray(args)) {
+          return;
+        }
+        const [name, ...rest] = args;
+        if (typeof name !== "string") {
+          return;
+        }
+        invokeEventHandler(name, rest);
+      };
+    } else {
+      window.onmessage = function(event) {
+        if (typeof event.data.pluginMessage === "undefined") {
+          return;
+        }
+        const args = event.data.pluginMessage;
+        if (!Array.isArray(args)) {
+          return;
+        }
+        const [name, ...rest] = event.data.pluginMessage;
+        if (typeof name !== "string") {
+          return;
+        }
+        invokeEventHandler(name, rest);
+      };
+    }
+  }
+});
+
+// node_modules/@create-figma-plugin/utilities/lib/ui.js
+function showUI(options, data) {
+  if (typeof __html__ === "undefined") {
+    throw new Error("No UI defined");
+  }
+  const html = `<div id="create-figma-plugin"></div><script>document.body.classList.add('theme-${figma.editorType}');const __FIGMA_COMMAND__='${typeof figma.command === "undefined" ? "" : figma.command}';const __SHOW_UI_DATA__=${JSON.stringify(typeof data === "undefined" ? {} : data)};${__html__}</script>`;
+  figma.showUI(html, __spreadProps(__spreadValues({}, options), {
+    themeColors: typeof options.themeColors === "undefined" ? true : options.themeColors
+  }));
+}
+var init_ui = __esm({
+  "node_modules/@create-figma-plugin/utilities/lib/ui.js"() {
+  }
+});
+
+// node_modules/@create-figma-plugin/utilities/lib/index.js
+var init_lib = __esm({
+  "node_modules/@create-figma-plugin/utilities/lib/index.js"() {
+    init_events();
+    init_ui();
+  }
+});
+
+// src/main.ts
+var main_exports = {};
+__export(main_exports, {
+  default: () => main_default
+});
+function main_default() {
+  showUI({ height: 840, width: 600 });
+  on("GENERATE_STICKER_SHEET", async (data) => {
+    try {
+      console.log("Generating sticker sheet...", data);
+      await generateStickerSheet(data);
+      figma.notify("Sticker sheet generated successfully!");
+    } catch (error) {
+      console.error("Error:", error);
+      figma.notify("Error generating sticker sheet");
+    }
+  });
+  on("GENERATE_PREVIEWS", async (data) => {
+    try {
+      console.log("Generating previews for", data.combinations.length, "combinations");
+      const previews = await generatePreviews(data.combinations);
+      emit("PREVIEWS_READY", previews);
+    } catch (error) {
+      console.error("Error generating previews:", error);
+      emit("PREVIEWS_ERROR", { error: String(error) });
+    }
+  });
+  on("SELECT_COMPONENT_BY_NAME", async (componentName) => {
+    try {
+      const allNodes = figma.currentPage.findAll(
+        (node) => node.type === "COMPONENT_SET" && node.name === componentName
+      );
+      if (allNodes.length > 0) {
+        figma.currentPage.selection = [allNodes[0]];
+        figma.viewport.scrollAndZoomIntoView([allNodes[0]]);
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        const componentData = getComponentData();
+        emit("INIT_DATA", componentData);
+        console.log("Component selected:", componentName);
+      } else {
+        console.log("No component found with name:", componentName);
+      }
+    } catch (error) {
+      console.error("Error selecting component:", error);
+    }
+  });
+  function getComponentData() {
+    let componentSets = [];
+    const selection = figma.currentPage.selection;
+    if (selection.length > 0) {
+      componentSets = selection.filter((node) => node.type === "COMPONENT_SET");
+    }
+    return componentSets.map((compSet) => {
+      const properties = {};
+      const propDefs = compSet.componentPropertyDefinitions || {};
+      Object.keys(propDefs).forEach((key) => {
+        const propName = key.split("#")[0];
+        const prop = propDefs[key];
+        if (!properties[propName]) {
+          properties[propName] = {
+            type: prop.type,
+            values: []
+          };
+        }
+        if (prop.type === "VARIANT" && prop.variantOptions) {
+          properties[propName].values = prop.variantOptions;
+        } else if (prop.type === "BOOLEAN") {
+          properties[propName].values = ["true", "false"];
+        }
+      });
+      const propertyOrder = Object.keys(properties).sort((a, b) => {
+        const typeOrder = { "VARIANT": 0, "BOOLEAN": 1, "INSTANCE_SWAP": 2, "TEXT": 3 };
+        const aType = properties[a].type;
+        const bType = properties[b].type;
+        const aOrder = typeOrder[aType] !== void 0 ? typeOrder[aType] : 999;
+        const bOrder = typeOrder[bType] !== void 0 ? typeOrder[bType] : 999;
+        if (aOrder !== bOrder) return aOrder - bOrder;
+        return a.localeCompare(b);
+      });
+      return {
+        id: compSet.id,
+        name: compSet.name,
+        properties,
+        propertyOrder,
+        variantCount: compSet.children.length
+      };
+    });
+  }
+  const initialData = getComponentData();
+  emit("INIT_DATA", initialData);
+  figma.on("selectionchange", () => {
+    const updatedData = getComponentData();
+    emit("INIT_DATA", updatedData);
+  });
+}
+async function generateStickerSheet(data) {
+  const { dataSource, selectedCombinations, includeLightDark, anovaComponentName, layoutConfig } = data;
+  if (selectedCombinations.length === 0) {
+    figma.notify("No combinations selected");
+    return;
+  }
+  const mainFrame = figma.createFrame();
+  mainFrame.name = "Sticker Sheet";
+  mainFrame.layoutMode = "VERTICAL";
+  mainFrame.primaryAxisSizingMode = "AUTO";
+  mainFrame.counterAxisSizingMode = "AUTO";
+  mainFrame.itemSpacing = 32;
+  mainFrame.paddingTop = 32;
+  mainFrame.paddingBottom = 32;
+  mainFrame.paddingLeft = 32;
+  mainFrame.paddingRight = 32;
+  mainFrame.fills = [{ type: "SOLID", color: { r: 0.98, g: 0.98, b: 0.98 } }];
+  mainFrame.cornerRadius = 8;
+  const groupedByComponent = {};
+  for (const combo of selectedCombinations) {
+    if (!groupedByComponent[combo.componentSetId]) {
+      groupedByComponent[combo.componentSetId] = [];
+    }
+    groupedByComponent[combo.componentSetId].push(combo);
+  }
+  for (const componentSetId in groupedByComponent) {
+    const combos = groupedByComponent[componentSetId];
+    let compSet = null;
+    let componentName = "";
+    if (dataSource === "anova") {
+      const selection = figma.currentPage.selection;
+      const selectedCompSet = selection.find((node) => node.type === "COMPONENT_SET");
+      if (!selectedCompSet) {
+        figma.notify("Please select a component set on the canvas to generate from Anova data");
+        return;
+      }
+      compSet = selectedCompSet;
+      componentName = anovaComponentName || compSet.name;
+    } else {
+      compSet = figma.getNodeById(componentSetId);
+      if (!compSet) continue;
+      componentName = compSet.name;
+    }
+    if (!compSet) continue;
+    const nameText = figma.createText();
+    await figma.loadFontAsync({ family: "Inter", style: "Semi Bold" });
+    nameText.fontName = { family: "Inter", style: "Semi Bold" };
+    nameText.fontSize = 18;
+    nameText.characters = componentName;
+    nameText.fills = [{ type: "SOLID", color: { r: 0.2, g: 0.2, b: 0.2 } }];
+    mainFrame.appendChild(nameText);
+    const modesContainer = figma.createFrame();
+    modesContainer.name = "Modes Container";
+    modesContainer.layoutMode = "HORIZONTAL";
+    modesContainer.primaryAxisSizingMode = "AUTO";
+    modesContainer.counterAxisSizingMode = "AUTO";
+    modesContainer.itemSpacing = 32;
+    modesContainer.fills = [];
+    const lightSection = await createModeSection(compSet, combos, false, layoutConfig);
+    modesContainer.appendChild(lightSection);
+    if (includeLightDark) {
+      const darkSection = await createModeSection(compSet, combos, true, layoutConfig);
+      modesContainer.appendChild(darkSection);
+      const resolvedModes = compSet.resolvedVariableModes;
+      for (const collectionId in resolvedModes) {
+        try {
+          const collection = figma.variables.getVariableCollectionById(collectionId);
+          if (collection && collection.name.toLowerCase().includes("semantic")) {
+            const darkMode = collection.modes.find((m) => m.name.toLowerCase().includes("dark"));
+            if (darkMode) {
+              darkSection.setExplicitVariableModeForCollection(collection, darkMode.modeId);
+              figma.notify("\u2705 Dark mode applied to " + componentName);
+              break;
+            }
+          }
+        } catch (e) {
+          console.log("Could not get collection:", collectionId, e);
+        }
+      }
+    }
+    mainFrame.appendChild(modesContainer);
+  }
+  figma.currentPage.selection = [mainFrame];
+  figma.viewport.scrollAndZoomIntoView([mainFrame]);
+}
+function analyzeVaryingProperties(combinations) {
+  if (combinations.length === 0) return [];
+  const propertyValues = {};
+  const propertyTypes = {};
+  const firstCombo = combinations[0];
+  for (const combo of combinations) {
+    for (const propName in combo.properties) {
+      if (!propertyValues[propName]) {
+        propertyValues[propName] = /* @__PURE__ */ new Set();
+      }
+      propertyValues[propName].add(combo.properties[propName]);
+    }
+  }
+  const varying = [];
+  for (const propName in propertyValues) {
+    if (propertyValues[propName].size > 1) {
+      const values = Array.from(propertyValues[propName]);
+      let type = "OTHER";
+      if (values.every((v) => String(v).toLowerCase() === "true" || String(v).toLowerCase() === "false")) {
+        type = "BOOLEAN";
+      } else {
+        type = "VARIANT";
+      }
+      varying.push({
+        name: propName,
+        values,
+        type
+      });
+    }
+  }
+  varying.sort((a, b) => {
+    if (a.type === "VARIANT" && b.type !== "VARIANT") return -1;
+    if (a.type !== "VARIANT" && b.type === "VARIANT") return 1;
+    return a.name.localeCompare(b.name);
+  });
+  return varying;
+}
+async function createInstance(compSet, properties) {
+  const baseComponent = compSet.children[0];
+  const instance = baseComponent.createInstance();
+  const propDefs = compSet.componentPropertyDefinitions;
+  const propNameToKey = {};
+  for (const key in propDefs) {
+    const cleanName = key.split("#")[0];
+    propNameToKey[cleanName] = key;
+  }
+  for (const propName in properties) {
+    const propValue = properties[propName];
+    const matchingKey = propNameToKey[propName];
+    if (matchingKey) {
+      try {
+        let valueToSet = propValue;
+        if (String(propValue).toLowerCase() === "true") {
+          valueToSet = true;
+        } else if (String(propValue).toLowerCase() === "false") {
+          valueToSet = false;
+        }
+        instance.setProperties({ [matchingKey]: valueToSet });
+      } catch (e) {
+      }
+    }
+  }
+  return instance;
+}
+async function createModeSection(compSet, combinations, isDark, layoutConfig) {
+  const sectionFrame = figma.createFrame();
+  sectionFrame.name = isDark ? "Dark Mode" : "Light Mode";
+  sectionFrame.layoutMode = "VERTICAL";
+  sectionFrame.primaryAxisSizingMode = "AUTO";
+  sectionFrame.counterAxisSizingMode = "AUTO";
+  sectionFrame.itemSpacing = 16;
+  sectionFrame.paddingTop = 24;
+  sectionFrame.paddingBottom = 24;
+  sectionFrame.paddingLeft = 24;
+  sectionFrame.paddingRight = 24;
+  sectionFrame.cornerRadius = 8;
+  sectionFrame.fills = isDark ? [{ type: "SOLID", color: { r: 0.18, g: 0.18, b: 0.18 } }] : [{ type: "SOLID", color: { r: 1, g: 1, b: 1 } }];
+  const modeTitle = figma.createText();
+  await figma.loadFontAsync({ family: "Inter", style: "Medium" });
+  modeTitle.fontName = { family: "Inter", style: "Medium" };
+  modeTitle.fontSize = 14;
+  modeTitle.characters = isDark ? "Dark Mode" : "Light Mode";
+  modeTitle.fills = isDark ? [{ type: "SOLID", color: { r: 1, g: 1, b: 1 } }] : [{ type: "SOLID", color: { r: 0.2, g: 0.2, b: 0.2 } }];
+  sectionFrame.appendChild(modeTitle);
+  const table = await createSimpleTable(compSet, combinations, isDark, layoutConfig);
+  sectionFrame.appendChild(table);
+  return sectionFrame;
+}
+async function createSimpleTable(compSet, combinations, isDark, layoutConfig) {
+  const tableFrame = figma.createFrame();
+  tableFrame.name = "Table";
+  tableFrame.layoutMode = "VERTICAL";
+  tableFrame.primaryAxisSizingMode = "AUTO";
+  tableFrame.counterAxisSizingMode = "AUTO";
+  tableFrame.itemSpacing = 8;
+  tableFrame.fills = [];
+  if (combinations.length === 0) return tableFrame;
+  const sampleInstance = await createInstance(compSet, combinations[0].properties);
+  const instanceWidth = sampleInstance.width;
+  const instanceHeight = sampleInstance.height;
+  sampleInstance.remove();
+  await figma.loadFontAsync({ family: "Inter", style: "Semi Bold" });
+  await figma.loadFontAsync({ family: "Inter", style: "Regular" });
+  const allProps = analyzeVaryingProperties(combinations);
+  if (allProps.length === 0) {
+    const row = figma.createFrame();
+    row.layoutMode = "HORIZONTAL";
+    row.itemSpacing = 12;
+    row.fills = [];
+    for (const combo of combinations) {
+      const instance = await createInstance(compSet, combo.properties);
+      row.appendChild(instance);
+    }
+    tableFrame.appendChild(row);
+    return tableFrame;
+  }
+  let rowProp;
+  let colProps;
+  if (layoutConfig && layoutConfig.rowProperty && layoutConfig.columnProperties && layoutConfig.columnProperties.length > 0) {
+    rowProp = allProps.find((p) => p.name === layoutConfig.rowProperty);
+    colProps = layoutConfig.columnProperties.map((colName) => allProps.find((p) => p.name === colName)).filter((p) => p !== void 0);
+    if (!rowProp || colProps.length === 0) {
+      rowProp = allProps[0];
+      colProps = allProps.slice(1);
+    }
+  } else {
+    rowProp = allProps[0];
+    colProps = allProps.slice(1);
+  }
+  const rowValues = [];
+  const seenRows = /* @__PURE__ */ new Set();
+  for (const combo of combinations) {
+    const rowValue = String(combo.properties[rowProp.name]);
+    if (!seenRows.has(rowValue)) {
+      seenRows.add(rowValue);
+      rowValues.push(rowValue);
+    }
+  }
+  const columnCombos = [];
+  const seenCols = /* @__PURE__ */ new Set();
+  for (const combo of combinations) {
+    const colValues = {};
+    for (const p of colProps) {
+      colValues[p.name] = combo.properties[p.name];
+    }
+    const colKey = JSON.stringify(colValues);
+    if (!seenCols.has(colKey)) {
+      seenCols.add(colKey);
+      columnCombos.push(colValues);
+    }
+  }
+  columnCombos.sort((a, b) => {
+    for (const p of colProps) {
+      const aVal = String(a[p.name]);
+      const bVal = String(b[p.name]);
+      if (aVal !== bVal) return aVal.localeCompare(bVal);
+    }
+    return 0;
+  });
+  const headerRow = figma.createFrame();
+  headerRow.name = "Header Row";
+  headerRow.layoutMode = "HORIZONTAL";
+  headerRow.itemSpacing = 12;
+  headerRow.fills = [];
+  headerRow.paddingBottom = 8;
+  const cornerCell = figma.createFrame();
+  cornerCell.resize(100, 1);
+  cornerCell.fills = [];
+  headerRow.appendChild(cornerCell);
+  for (let i = 0; i < columnCombos.length; i++) {
+    const colCombo = columnCombos[i];
+    const headerContainer = figma.createFrame();
+    headerContainer.layoutMode = "VERTICAL";
+    headerContainer.primaryAxisSizingMode = "FIXED";
+    headerContainer.counterAxisSizingMode = "AUTO";
+    headerContainer.primaryAxisAlignItems = "CENTER";
+    headerContainer.fills = [];
+    const headerText = figma.createText();
+    headerText.fontName = { family: "Inter", style: "Semi Bold" };
+    headerText.fontSize = 10;
+    headerText.textAlignHorizontal = "CENTER";
+    const headerLines = [];
+    if (colProps.length > 0) {
+      for (const p of colProps) {
+        const value = String(colCombo[p.name]);
+        headerLines.push(`${p.name}: (${i + 1}) ${value}`);
+      }
+    } else {
+      headerLines.push(`(${i + 1})`);
+    }
+    headerText.characters = headerLines.join("\n");
+    headerText.fills = isDark ? [{ type: "SOLID", color: { r: 0.6, g: 0.6, b: 0.6 } }] : [{ type: "SOLID", color: { r: 0.5, g: 0.5, b: 0.5 } }];
+    headerContainer.appendChild(headerText);
+    headerContainer.resize(Math.max(instanceWidth, headerText.width + 8), headerText.height + 8);
+    headerRow.appendChild(headerContainer);
+  }
+  tableFrame.appendChild(headerRow);
+  for (const rowValue of rowValues) {
+    const dataRow = figma.createFrame();
+    dataRow.name = `Row: ${rowValue}`;
+    dataRow.layoutMode = "HORIZONTAL";
+    dataRow.itemSpacing = 12;
+    dataRow.fills = [];
+    const rowLabelContainer = figma.createFrame();
+    rowLabelContainer.resize(100, instanceHeight);
+    rowLabelContainer.layoutMode = "VERTICAL";
+    rowLabelContainer.primaryAxisAlignItems = "CENTER";
+    rowLabelContainer.counterAxisAlignItems = "CENTER";
+    rowLabelContainer.fills = [];
+    const rowLabel = figma.createText();
+    rowLabel.fontName = { family: "Inter", style: "Regular" };
+    rowLabel.fontSize = 11;
+    rowLabel.characters = `${rowProp.name}:
+${rowValue}`;
+    rowLabel.textAlignHorizontal = "CENTER";
+    rowLabel.fills = isDark ? [{ type: "SOLID", color: { r: 0.8, g: 0.8, b: 0.8 } }] : [{ type: "SOLID", color: { r: 0.3, g: 0.3, b: 0.3 } }];
+    rowLabelContainer.appendChild(rowLabel);
+    dataRow.appendChild(rowLabelContainer);
+    for (const colCombo of columnCombos) {
+      const matchingCombo = combinations.find((c) => {
+        if (String(c.properties[rowProp.name]) !== rowValue) return false;
+        for (const p of colProps) {
+          if (String(c.properties[p.name]) !== String(colCombo[p.name])) return false;
+        }
+        return true;
+      });
+      if (matchingCombo) {
+        const instanceContainer = figma.createFrame();
+        instanceContainer.resize(instanceWidth, instanceHeight);
+        instanceContainer.layoutMode = "VERTICAL";
+        instanceContainer.primaryAxisAlignItems = "CENTER";
+        instanceContainer.counterAxisAlignItems = "CENTER";
+        instanceContainer.fills = [];
+        const instance = await createInstance(compSet, matchingCombo.properties);
+        instanceContainer.appendChild(instance);
+        dataRow.appendChild(instanceContainer);
+      } else {
+        const emptyCell = figma.createFrame();
+        emptyCell.resize(instanceWidth, instanceHeight);
+        emptyCell.fills = [];
+        dataRow.appendChild(emptyCell);
+      }
+    }
+    tableFrame.appendChild(dataRow);
+  }
+  return tableFrame;
+}
+async function generatePreviews(combinations) {
+  const selection = figma.currentPage.selection;
+  console.log("Current selection:", selection.length, "nodes");
+  const compSet = selection.find((node) => node.type === "COMPONENT_SET");
+  if (!compSet) {
+    console.error("No component set in selection. Selection:", selection.map((n) => ({ type: n.type, name: n.name })));
+    throw new Error("No component set selected");
+  }
+  console.log("Using component set:", compSet.name);
+  const previews = {};
+  for (const combo of combinations) {
+    try {
+      const instance = await createInstance(compSet, combo.properties);
+      const imageData = await instance.exportAsync({
+        format: "PNG",
+        constraint: { type: "SCALE", value: 0.5 }
+      });
+      const base64 = figma.base64Encode(imageData);
+      previews[combo.variantName] = base64;
+      instance.remove();
+    } catch (error) {
+      console.error("Error generating preview for", combo.variantName, error);
+    }
+  }
+  console.log("Generated", Object.keys(previews).length, "previews out of", combinations.length, "combinations");
+  return previews;
+}
+var init_main = __esm({
+  "src/main.ts"() {
+    "use strict";
+    init_lib();
+  }
+});
+
+// <stdin>
+var modules = { "src/main.ts--default": (init_main(), __toCommonJS(main_exports))["default"] };
+var commandId = true ? "src/main.ts--default" : figma.command;
+modules[commandId]();

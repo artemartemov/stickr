@@ -1,7 +1,7 @@
 import { emit, on, showUI } from '@create-figma-plugin/utilities'
 
 export default function () {
-  showUI({ height: 720, width: 480 })
+  showUI({ height: 840, width: 600 })
 
   // Listen for UI messages
   on('GENERATE_STICKER_SHEET', async (data: any) => {
@@ -132,13 +132,13 @@ async function generateStickerSheet(data: any) {
     return
   }
 
-  // Create main frame
+  // Create main container
   const mainFrame = figma.createFrame()
   mainFrame.name = 'Sticker Sheet'
   mainFrame.layoutMode = 'VERTICAL'
   mainFrame.primaryAxisSizingMode = 'AUTO'
   mainFrame.counterAxisSizingMode = 'AUTO'
-  mainFrame.itemSpacing = 0
+  mainFrame.itemSpacing = 32
   mainFrame.paddingTop = 32
   mainFrame.paddingBottom = 32
   mainFrame.paddingLeft = 32
@@ -164,7 +164,6 @@ async function generateStickerSheet(data: any) {
     let componentName = ''
 
     if (dataSource === 'anova') {
-      // For Anova mode, get the selected component set from the canvas
       const selection = figma.currentPage.selection
       const selectedCompSet = selection.find(node => node.type === 'COMPONENT_SET') as ComponentSetNode
 
@@ -176,7 +175,6 @@ async function generateStickerSheet(data: any) {
       compSet = selectedCompSet
       componentName = anovaComponentName || compSet.name
     } else {
-      // Figma Direct mode - use the ID
       compSet = figma.getNodeById(componentSetId) as ComponentSetNode
       if (!compSet) continue
       componentName = compSet.name
@@ -193,19 +191,13 @@ async function generateStickerSheet(data: any) {
     nameText.fills = [{ type: 'SOLID', color: { r: 0.2, g: 0.2, b: 0.2 } }]
     mainFrame.appendChild(nameText)
 
-    // Add spacing
-    const spacer1 = figma.createFrame()
-    spacer1.resize(1, 16)
-    spacer1.fills = []
-    mainFrame.appendChild(spacer1)
-
-    // Create container for light and dark sections (side by side)
+    // Create container for light/dark modes
     const modesContainer = figma.createFrame()
     modesContainer.name = 'Modes Container'
     modesContainer.layoutMode = 'HORIZONTAL'
     modesContainer.primaryAxisSizingMode = 'AUTO'
     modesContainer.counterAxisSizingMode = 'AUTO'
-    modesContainer.itemSpacing = 24
+    modesContainer.itemSpacing = 32
     modesContainer.fills = []
 
     // Create light mode section
@@ -216,15 +208,31 @@ async function generateStickerSheet(data: any) {
     if (includeLightDark) {
       const darkSection = await createModeSection(compSet, combos, true, layoutConfig)
       modesContainer.appendChild(darkSection)
+
+      // Apply dark mode using component set's resolved variable modes
+      // This includes both local AND remote/library collections
+      const resolvedModes = compSet.resolvedVariableModes
+
+      for (const collectionId in resolvedModes) {
+        try {
+          const collection = figma.variables.getVariableCollectionById(collectionId)
+
+          if (collection && collection.name.toLowerCase().includes('semantic')) {
+            const darkMode = collection.modes.find(m => m.name.toLowerCase().includes('dark'))
+
+            if (darkMode) {
+              darkSection.setExplicitVariableModeForCollection(collection, darkMode.modeId)
+              figma.notify('✅ Dark mode applied to ' + componentName)
+              break
+            }
+          }
+        } catch (e) {
+          console.log('Could not get collection:', collectionId, e)
+        }
+      }
     }
 
     mainFrame.appendChild(modesContainer)
-
-    // Add spacing after component set
-    const spacer2 = figma.createFrame()
-    spacer2.resize(1, 24)
-    spacer2.fills = []
-    mainFrame.appendChild(spacer2)
   }
 
   figma.currentPage.selection = [mainFrame]
@@ -287,8 +295,6 @@ async function createInstance(compSet: ComponentSetNode, properties: any) {
   const baseComponent = compSet.children[0] as ComponentNode
   const instance = baseComponent.createInstance()
 
-  console.log('🔧 Creating instance with properties:', properties)
-
   // Set properties
   const propDefs = compSet.componentPropertyDefinitions
 
@@ -298,16 +304,11 @@ async function createInstance(compSet: ComponentSetNode, properties: any) {
     const cleanName = key.split('#')[0]
     propNameToKey[cleanName] = key
   }
-  
-  console.log('📋 Available Figma properties:', Object.keys(propNameToKey))
-  console.log('📋 Requested properties:', Object.keys(properties))
 
   // Try to set each property from the combination
   for (const propName in properties) {
     const propValue = properties[propName]
-
-    // Try to find matching key
-    let matchingKey = propNameToKey[propName]
+    const matchingKey = propNameToKey[propName]
 
     if (matchingKey) {
       try {
@@ -320,12 +321,9 @@ async function createInstance(compSet: ComponentSetNode, properties: any) {
         }
 
         instance.setProperties({ [matchingKey]: valueToSet })
-        console.log('✓ Set property:', propName, '=', valueToSet)
       } catch (e) {
-        console.log('✗ Could not set property:', propName, '=', propValue, 'Error:', e)
+        // Silently continue if property can't be set
       }
-    } else {
-      console.log('✗ No matching key found for property:', propName, 'Available keys:', Object.keys(propNameToKey))
     }
   }
 
@@ -333,6 +331,7 @@ async function createInstance(compSet: ComponentSetNode, properties: any) {
 }
 
 async function createModeSection(compSet: ComponentSetNode, combinations: any[], isDark: boolean, layoutConfig?: any) {
+  // Create the Frame for the mode section
   const sectionFrame = figma.createFrame()
   sectionFrame.name = isDark ? 'Dark Mode' : 'Light Mode'
   sectionFrame.layoutMode = 'VERTICAL'
@@ -359,7 +358,7 @@ async function createModeSection(compSet: ComponentSetNode, combinations: any[],
     : [{ type: 'SOLID', color: { r: 0.2, g: 0.2, b: 0.2 } }]
   sectionFrame.appendChild(modeTitle)
 
-  // Create table with all combinations as columns
+  // Create table with all combinations
   const table = await createSimpleTable(compSet, combinations, isDark, layoutConfig)
   sectionFrame.appendChild(table)
 
@@ -377,12 +376,6 @@ async function createSimpleTable(compSet: ComponentSetNode, combinations: any[],
 
   if (combinations.length === 0) return tableFrame
 
-  // Debug: Log what combinations we received
-  console.log('=== createSimpleTable DEBUG ===')
-  console.log('Number of combinations:', combinations.length)
-  console.log('First combination:', combinations[0])
-  console.log('All combinations:', combinations.map(c => c.properties))
-
   // Get a sample instance to measure dimensions
   const sampleInstance = await createInstance(compSet, combinations[0].properties)
   const instanceWidth = sampleInstance.width
@@ -395,8 +388,6 @@ async function createSimpleTable(compSet: ComponentSetNode, combinations: any[],
 
   // Analyze properties - determine which should be rows vs columns
   const allProps = analyzeVaryingProperties(combinations)
-  console.log('Varying properties found:', allProps)
-  console.log('Property types:', allProps.map(p => ({ name: p.name, type: p.type, values: p.values })))
 
   if (allProps.length === 0) {
     // No variation - just show all instances in a row
@@ -433,9 +424,6 @@ async function createSimpleTable(compSet: ComponentSetNode, combinations: any[],
     rowProp = allProps[0]
     colProps = allProps.slice(1)
   }
-
-  console.log('Row property:', rowProp)
-  console.log('Column properties:', colProps)
 
   // Get unique row values in the order they appear (preserve Figma's original order)
   const rowValues: string[] = []
@@ -474,9 +462,6 @@ async function createSimpleTable(compSet: ComponentSetNode, combinations: any[],
     }
     return 0
   })
-
-  console.log('Column combinations:', columnCombos)
-  console.log('Number of columns:', columnCombos.length)
 
   // Create header row
   const headerRow = figma.createFrame()
@@ -530,8 +515,6 @@ async function createSimpleTable(compSet: ComponentSetNode, combinations: any[],
 
     // Resize container to fit text width and height
     headerContainer.resize(Math.max(instanceWidth, headerText.width + 8), headerText.height + 8)
-
-    console.log(`Header ${i}: "${headerText.characters}" - size: ${headerContainer.width}x${headerContainer.height}`)
 
     headerRow.appendChild(headerContainer)
   }

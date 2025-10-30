@@ -315,10 +315,18 @@ function Plugin() {
       return true
     })
 
+    // Determine if we should select or deselect based on the current combo's state
+    const currentKey = getCombinationKey(combo)
+    const shouldSelect = !selectedCombinations[currentKey]
+
     const newState = { ...selectedCombinations }
     matchingCombos.forEach(matchingCombo => {
       const key = getCombinationKey(matchingCombo)
-      newState[key] = true
+      if (shouldSelect) {
+        newState[key] = true
+      } else {
+        delete newState[key]
+      }
     })
 
     setSelectedCombinations(newState)
@@ -345,8 +353,8 @@ function Plugin() {
     return Array.from(uniqueValues).sort()
   }
 
-  function handleGenerate() {
-    const selected = previewCombinations.filter((combo) => {
+  function handleGenerate(explicitCombinations?: any[]) {
+    const selected = explicitCombinations || previewCombinations.filter((combo) => {
       const key = getCombinationKey(combo)
       return selectedCombinations[key]
     })
@@ -1921,7 +1929,7 @@ function Plugin() {
           <Button fullWidth onClick={() => setIsLayoutModalOpen(true)} disabled={!hasSelection}>
             Preview Layout
           </Button>
-          <Button fullWidth secondary onClick={handleGenerate} disabled={!hasSelection}>
+          <Button fullWidth secondary onClick={() => handleGenerate()} disabled={!hasSelection}>
             Generate
           </Button>
         </div>
@@ -1986,16 +1994,21 @@ function Plugin() {
 
         const propArray = Array.from(varyingProps)
 
-        // Get unique values for each property
+        // Get unique values for each property IN THE ORDER THEY APPEAR (matches backend)
         const propValues: { [key: string]: string[] } = {}
         propArray.forEach(prop => {
-          const values = new Set<string>()
+          const values: string[] = []
+          const seen = new Set<string>()
           selectedCombos.forEach(combo => {
             if (combo.properties[prop]) {
-              values.add(String(combo.properties[prop]))
+              const val = String(combo.properties[prop])
+              if (!seen.has(val)) {
+                seen.add(val)
+                values.push(val)
+              }
             }
           })
-          propValues[prop] = Array.from(values).sort()
+          propValues[prop] = values
         })
 
         // Set defaults if not already set
@@ -2015,134 +2028,431 @@ function Plugin() {
           }
         }
 
+        // State for excluded cells
+        const [excludedCells, setExcludedCells] = useState<Set<string>>(new Set())
+
+        // Create a unique key for a cell based on row + column combination
+        const getCellKey = (rowValue: string, colCombo: any[]) => {
+          return `${currentRowProp}:${rowValue}|${currentColProps.map((prop, idx) => `${prop}:${colCombo[idx]}`).join('|')}`
+        }
+
+        // Toggle cell exclusion
+        const toggleCellExclusion = (rowValue: string, colCombo: any[]) => {
+          const key = getCellKey(rowValue, colCombo)
+          const newExcluded = new Set(excludedCells)
+          if (newExcluded.has(key)) {
+            newExcluded.delete(key)
+          } else {
+            newExcluded.add(key)
+          }
+          setExcludedCells(newExcluded)
+        }
+
         return (
           <Modal
             open={isLayoutModalOpen}
-            title="Preview Sticker Sheet Layout"
+            title="Configure Layout"
             onCloseButtonClick={() => setIsLayoutModalOpen(false)}
           >
-            <div style={{ padding: '12px', maxHeight: '70vh', overflowY: 'auto' }}>
+            <div style={{
+              padding: '16px',
+              maxWidth: '568px',
+              width: '100%',
+              boxSizing: 'border-box'
+            }}>
               {propArray.length < 2 ? (
                 <div>
                   <Muted>Need at least 2 varying properties to customize layout</Muted>
                 </div>
               ) : (
                 <>
+                  <Muted style={{ fontSize: '11px', marginBottom: '12px', display: 'block' }}>
+                    Assign each property to Row or Column
+                  </Muted>
+
                   <div style={{ marginBottom: '16px' }}>
-                    <Muted style={{ fontSize: '11px', marginBottom: '12px', display: 'block' }}>
-                      Choose how to organize your sticker sheet
-                    </Muted>
+                    {/* Property Assignment List */}
+                    {propArray.map(prop => {
+                      const isRowProp = currentRowProp === prop
+                      const isColProp = currentColProps.includes(prop)
 
-                    {/* Row Property */}
-                    <div style={{ marginBottom: '16px' }}>
-                      <Muted style={{ fontSize: '10px', fontWeight: 600, marginBottom: '4px', display: 'block' }}>
-                        Rows
-                      </Muted>
-                      <Dropdown
-                        value={currentRowProp || ''}
-                        options={rowOptions}
-                        onChange={(e) => {
-                          const newRowProp = e.currentTarget.value
-                          setLayoutRowProperty(newRowProp)
-                          // Remove from columns if it was there
-                          setLayoutColumnProperties(currentColProps.filter(p => p !== newRowProp))
-                        }}
-                        style={{ fontSize: '11px' }}
-                      />
-                    </div>
+                      return (
+                        <div
+                          key={prop}
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            padding: '8px 0',
+                            borderBottom: '1px solid var(--figma-color-border)'
+                          }}
+                        >
+                          {/* Property Name & Info */}
+                          <div style={{ flex: 1 }}>
+                            <Text style={{ fontSize: '11px', display: 'block', marginBottom: '2px' }}>
+                              {prop}
+                            </Text>
+                            {propValues[prop] && (
+                              <Muted style={{ fontSize: '10px' }}>
+                                {propValues[prop].length} values: {propValues[prop].slice(0, 3).join(', ')}
+                                {propValues[prop].length > 3 ? '...' : ''}
+                              </Muted>
+                            )}
+                          </div>
 
-                    {/* Column Properties (Multi-select) */}
-                    <div style={{ marginBottom: '16px' }}>
-                      <Muted style={{ fontSize: '10px', fontWeight: 600, marginBottom: '8px', display: 'block' }}>
-                        Columns (select properties to include)
-                      </Muted>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        {availableColProps.map(prop => (
-                          <Checkbox
-                            key={prop}
-                            value={currentColProps.includes(prop)}
-                            onValueChange={() => handleColumnToggle(prop)}
-                          >
-                            <Text style={{ fontSize: '11px' }}>{prop}</Text>
-                          </Checkbox>
-                        ))}
-                      </div>
-                    </div>
+                          {/* Row/Column Buttons */}
+                          <div style={{ display: 'flex', gap: '4px', marginLeft: '12px' }}>
+                            <Button
+                              secondary={!isRowProp}
+                              onClick={() => {
+                                setLayoutRowProperty(prop)
+                                // Remove from columns if selected as row
+                                if (isColProp) {
+                                  setLayoutColumnProperties(currentColProps.filter(p => p !== prop))
+                                }
+                              }}
+                              style={{
+                                minWidth: '50px',
+                                padding: '4px 8px',
+                                fontSize: '10px'
+                              }}
+                            >
+                              Row
+                            </Button>
+                            <Button
+                              secondary={!isColProp}
+                              disabled={isRowProp}
+                              onClick={() => handleColumnToggle(prop)}
+                              style={{
+                                minWidth: '50px',
+                                padding: '4px 8px',
+                                fontSize: '10px'
+                              }}
+                            >
+                              Column
+                            </Button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
 
-                    {/* Visual Matrix Preview */}
+                    {/* Visual Matrix Preview - More Context Rich */}
                     {currentRowProp && currentColProps.length > 0 && (
                       <div style={{
-                        padding: '12px',
+                        padding: '16px',
                         background: 'var(--figma-color-bg-secondary)',
                         borderRadius: '6px',
-                        border: '1px solid var(--figma-color-border)',
-                        marginBottom: '16px'
+                        border: '1px solid var(--figma-color-border)'
                       }}>
-                        <div style={{ fontSize: '11px', fontWeight: 600, marginBottom: '8px' }}>
-                          Layout Preview
+                        <div style={{ marginBottom: '12px' }}>
+                          <Text style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: '4px' }}>
+                            Layout Preview
+                          </Text>
+                          <Muted style={{ fontSize: '10px' }}>
+                            {propValues[currentRowProp]?.length || 0} rows × {
+                              currentColProps.reduce((sum, prop) =>
+                                sum * (propValues[prop]?.length || 1), 1)
+                            } columns = {(propValues[currentRowProp]?.length || 0) *
+                            currentColProps.reduce((sum, prop) =>
+                              sum * (propValues[prop]?.length || 1), 1)} total cells
+                            {excludedCells.size > 0 && (
+                              <span style={{ color: 'var(--figma-color-text-danger)' }}>
+                                {' '}({excludedCells.size} excluded)
+                              </span>
+                            )}
+                          </Muted>
                         </div>
 
-                        {/* Grid visualization */}
-                        <div style={{ fontSize: '10px', overflowX: 'auto' }}>
-                          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        {/* Exclusion hint */}
+                        <div style={{ marginBottom: '8px' }}>
+                          <Muted style={{ fontSize: '10px' }}>
+                            💡 Click any cell to exclude it from generation
+                          </Muted>
+                        </div>
+
+                        {/* Scrollable container with shadow hints */}
+                        <div style={{
+                          position: 'relative',
+                          borderRadius: '4px',
+                          border: '1px solid var(--figma-color-border)',
+                          background: 'var(--figma-color-bg)',
+                          width: '100%',
+                          maxWidth: '536px'
+                        }}>
+                          {/* Scroll hint overlay - right side */}
+                          <div style={{
+                            position: 'absolute',
+                            top: 0,
+                            right: 0,
+                            bottom: '30px',
+                            width: '40px',
+                            background: 'linear-gradient(to left, var(--figma-color-bg-secondary) 0%, transparent 100%)',
+                            pointerEvents: 'none',
+                            zIndex: 3,
+                            borderRadius: '0 4px 0 0'
+                          }} />
+
+                          {/* Grid visualization with actual values */}
+                          <div style={{
+                            fontSize: '10px',
+                            overflowX: 'scroll',
+                            overflowY: 'scroll',
+                            maxHeight: '350px',
+                            width: '100%',
+                            WebkitOverflowScrolling: 'touch',
+                            position: 'relative'
+                          }}>
+                          <table style={{
+                            width: 'auto',
+                            borderCollapse: 'separate',
+                            borderSpacing: 0,
+                            tableLayout: 'auto'
+                          }}>
                             <thead>
                               <tr>
                                 <th style={{
-                                  padding: '4px 8px 4px 0',
+                                  padding: '8px 12px',
                                   textAlign: 'left',
-                                  fontWeight: 500,
-                                  fontSize: '10px',
-                                  color: 'var(--figma-color-text-tertiary)'
+                                  fontWeight: 600,
+                                  fontSize: '11px',
+                                  color: 'var(--figma-color-text)',
+                                  background: 'var(--figma-color-bg-secondary)',
+                                  position: 'sticky',
+                                  top: 0,
+                                  left: 0,
+                                  zIndex: 3,
+                                  borderBottom: '2px solid var(--figma-color-border)',
+                                  borderRight: '2px solid var(--figma-color-border)',
+                                  minWidth: '100px'
                                 }}>
-                                  {currentRowProp}
+                                  ↓ {currentRowProp}
                                 </th>
-                                {currentColProps.map(colProp => (
-                                  <th key={colProp} style={{
-                                    padding: '4px 8px',
-                                    textAlign: 'left',
-                                    fontWeight: 500,
-                                    fontSize: '10px',
-                                    color: 'var(--figma-color-text-tertiary)'
-                                  }}>
-                                    {colProp}
-                                  </th>
-                                ))}
+                                {(() => {
+                                  // Generate all column combinations
+                                  const getColumnCombinations = (props: string[], index: number, current: any[]): any[][] => {
+                                    if (index >= props.length) return [current]
+                                    const results: any[][] = []
+                                    const values = propValues[props[index]] || []
+                                    for (const val of values) {
+                                      results.push(...getColumnCombinations(props, index + 1, [...current, val]))
+                                    }
+                                    return results
+                                  }
+
+                                  const colCombos = getColumnCombinations(currentColProps, 0, [])
+
+                                  // Sort columns the same way the backend does
+                                  colCombos.sort((a, b) => {
+                                    for (let i = 0; i < currentColProps.length; i++) {
+                                      const aVal = String(a[i])
+                                      const bVal = String(b[i])
+                                      if (aVal !== bVal) return aVal.localeCompare(bVal)
+                                    }
+                                    return 0
+                                  })
+
+                                  return colCombos.map((combo, idx) => (
+                                    <th key={idx} style={{
+                                      padding: '8px 12px',
+                                      textAlign: 'left',
+                                      fontWeight: 600,
+                                      fontSize: '10px',
+                                      color: 'var(--figma-color-text)',
+                                      background: 'var(--figma-color-bg)',
+                                      position: 'sticky',
+                                      top: 0,
+                                      zIndex: 1,
+                                      borderBottom: '2px solid var(--figma-color-border)',
+                                      borderLeft: idx === 0 ? 'none' : '1px solid var(--figma-color-border)',
+                                      minWidth: '100px',
+                                      maxWidth: '200px',
+                                      whiteSpace: 'normal',
+                                      verticalAlign: 'top'
+                                    }}>
+                                      {currentColProps.map((prop, propIdx) => (
+                                        <div key={propIdx} style={{
+                                          marginBottom: propIdx < currentColProps.length - 1 ? '4px' : 0,
+                                          fontSize: '9px',
+                                          color: 'var(--figma-color-text-secondary)',
+                                          lineHeight: '1.3'
+                                        }}>
+                                          <span style={{ fontWeight: 600, color: 'var(--figma-color-text)' }}>{prop}:</span> {combo[propIdx]}
+                                        </div>
+                                      ))}
+                                    </th>
+                                  ))
+                                })()}
                               </tr>
                             </thead>
                             <tbody>
-                              {propValues[currentRowProp]?.map((rowValue, idx) => (
-                                <tr key={idx}>
+                              {propValues[currentRowProp]?.map((rowValue, rowIdx) => (
+                                <tr key={rowIdx}>
                                   <td style={{
-                                    padding: '4px 8px 4px 0',
-                                    fontSize: '10px',
-                                    color: 'var(--figma-color-text)'
+                                    padding: '8px 12px',
+                                    fontSize: '11px',
+                                    fontWeight: 600,
+                                    color: 'var(--figma-color-text)',
+                                    background: 'var(--figma-color-bg-secondary)',
+                                    position: 'sticky',
+                                    left: 0,
+                                    zIndex: 1,
+                                    borderRight: '2px solid var(--figma-color-border)',
+                                    borderBottom: '1px solid var(--figma-color-border)',
+                                    minWidth: '100px'
                                   }}>
                                     {rowValue}
                                   </td>
-                                  {currentColProps.map(colProp => (
-                                    <td key={colProp} style={{
-                                      padding: '4px 8px',
-                                      fontSize: '10px',
-                                      color: 'var(--figma-color-text-tertiary)'
-                                    }}>
-                                      {propValues[colProp]?.join(', ') || '—'}
-                                    </td>
-                                  ))}
+                                  {(() => {
+                                    // Generate all column combinations
+                                    const getColumnCombinations = (props: string[], index: number, current: any[]): any[][] => {
+                                      if (index >= props.length) return [current]
+                                      const results: any[][] = []
+                                      const values = propValues[props[index]] || []
+                                      for (const val of values) {
+                                        results.push(...getColumnCombinations(props, index + 1, [...current, val]))
+                                      }
+                                      return results
+                                    }
+
+                                    const colCombos = getColumnCombinations(currentColProps, 0, [])
+
+                                    // Sort columns the same way the backend does
+                                    colCombos.sort((a, b) => {
+                                      for (let i = 0; i < currentColProps.length; i++) {
+                                        const aVal = String(a[i])
+                                        const bVal = String(b[i])
+                                        if (aVal !== bVal) return aVal.localeCompare(bVal)
+                                      }
+                                      return 0
+                                    })
+
+                                    return colCombos.map((combo, colIdx) => {
+                                      // Check if this combination actually exists in selected combinations
+                                      const comboExists = selectedCombos.some(c => {
+                                        if (String(c.properties[currentRowProp]) !== rowValue) return false
+                                        for (let i = 0; i < currentColProps.length; i++) {
+                                          if (String(c.properties[currentColProps[i]]) !== String(combo[i])) return false
+                                        }
+                                        return true
+                                      })
+
+                                      if (!comboExists) {
+                                        // Empty cell - combination doesn't exist
+                                        return (
+                                          <td key={colIdx} style={{
+                                            padding: '4px',
+                                            fontSize: '10px',
+                                            textAlign: 'center',
+                                            background: 'var(--figma-color-bg-secondary)',
+                                            borderBottom: '1px solid var(--figma-color-border)',
+                                            borderLeft: colIdx === 0 ? 'none' : '1px solid var(--figma-color-border)',
+                                            opacity: 0.3
+                                          }}>
+                                            <div style={{
+                                              padding: '8px 12px',
+                                              fontSize: '10px',
+                                              color: 'var(--figma-color-text-disabled)'
+                                            }}>
+                                              —
+                                            </div>
+                                          </td>
+                                        )
+                                      }
+
+                                      const cellKey = getCellKey(rowValue, combo)
+                                      const isExcluded = excludedCells.has(cellKey)
+
+                                      return (
+                                        <td key={colIdx} style={{
+                                          padding: '4px',
+                                          fontSize: '10px',
+                                          textAlign: 'center',
+                                          background: 'var(--figma-color-bg)',
+                                          borderBottom: '1px solid var(--figma-color-border)',
+                                          borderLeft: colIdx === 0 ? 'none' : '1px solid var(--figma-color-border)',
+                                          cursor: 'pointer'
+                                        }}
+                                        onClick={() => toggleCellExclusion(rowValue, combo)}
+                                        >
+                                          <div style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            padding: '8px 12px',
+                                            background: isExcluded
+                                              ? 'var(--figma-color-bg-secondary)'
+                                              : 'var(--figma-color-bg-brand-tertiary)',
+                                            borderRadius: '3px',
+                                            fontSize: '10px',
+                                            fontWeight: 500,
+                                            color: isExcluded
+                                              ? 'var(--figma-color-text-disabled)'
+                                              : 'var(--figma-color-text-brand)',
+                                            opacity: isExcluded ? 0.5 : 1,
+                                            transition: 'all 0.15s ease',
+                                            minWidth: '40px',
+                                            textDecoration: isExcluded ? 'line-through' : 'none'
+                                          }}
+                                          onMouseEnter={(e) => {
+                                            e.currentTarget.style.transform = 'scale(1.05)'
+                                          }}
+                                          onMouseLeave={(e) => {
+                                            e.currentTarget.style.transform = 'scale(1)'
+                                          }}
+                                          >
+                                            {isExcluded ? '✗' : '✓'}
+                                          </div>
+                                        </td>
+                                      )
+                                    })
+                                  })()}
                                 </tr>
                               ))}
                             </tbody>
                           </table>
+                          </div>
+                          {/* End scroll container */}
+
+                          {/* Scroll hint text */}
+                          <div style={{
+                            marginTop: '8px',
+                            textAlign: 'center'
+                          }}>
+                            <Muted style={{ fontSize: '9px' }}>
+                              ← Scroll to see all columns →
+                            </Muted>
+                          </div>
                         </div>
                       </div>
                     )}
-                  </div>
 
                   <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                     <Button secondary onClick={() => setIsLayoutModalOpen(false)}>
                       Cancel
                     </Button>
                     <Button onClick={() => {
-                      handleGenerate()
+                      if (!currentRowProp) return
+
+                      // Filter out excluded combinations before generating
+                      const combinationsToGenerate = selectedCombos.filter(combo => {
+                        // Build the cell key for this combination
+                        const rowValue = String(combo.properties[currentRowProp])
+                        const colCombo = currentColProps.map(prop => String(combo.properties[prop]))
+                        const cellKey = getCellKey(rowValue, colCombo)
+
+                        // Include if not excluded
+                        return !excludedCells.has(cellKey)
+                      })
+
+                      console.log('🎨 Generating with exclusions:', {
+                        total: selectedCombos.length,
+                        excluded: excludedCells.size,
+                        toGenerate: combinationsToGenerate.length
+                      })
+
+                      // Generate directly with filtered combinations
+                      handleGenerate(combinationsToGenerate)
                       setIsLayoutModalOpen(false)
                     }} disabled={!currentRowProp || currentColProps.length === 0}>
                       Generate Sticker Sheet
