@@ -1,6 +1,6 @@
 import { emit, on, showUI } from '@create-figma-plugin/utilities'
 import { UI_CONFIG, SPACING, COLORS, BORDER_RADIUS, FONTS, FONT_SIZES, FRAME_DIMENSIONS, TIMING, EXPORT_SCALE } from './constants'
-import { parseBooleanString, isBooleanString, cleanPropertyName, delay, createFrame } from './utils'
+import { parseBooleanString, isBooleanString, cleanPropertyName, delay, createFrame, createAutoLayoutFrame } from './utils'
 
 export default function () {
   showUI({ height: UI_CONFIG.HEIGHT, width: UI_CONFIG.WIDTH })
@@ -135,18 +135,17 @@ async function generateStickerSheet(data: any) {
   }
 
   // Create main container
-  const mainFrame = createFrame()
-  mainFrame.name = 'Sticker Sheet'
-  mainFrame.layoutMode = 'VERTICAL'
-  mainFrame.primaryAxisSizingMode = 'AUTO'
-  mainFrame.counterAxisSizingMode = 'AUTO'
-  mainFrame.itemSpacing = SPACING.LARGE
-  mainFrame.paddingTop = SPACING.LARGE
-  mainFrame.paddingBottom = SPACING.LARGE
-  mainFrame.paddingLeft = SPACING.LARGE
-  mainFrame.paddingRight = SPACING.LARGE
-  mainFrame.fills = [{ type: 'SOLID', color: COLORS.LIGHT_BG }]
-  mainFrame.cornerRadius = BORDER_RADIUS.SMALL
+  const mainFrame = createAutoLayoutFrame({
+    name: 'Sticker Sheet',
+    layoutMode: 'VERTICAL',
+    itemSpacing: SPACING.LARGE,
+    paddingTop: SPACING.LARGE,
+    paddingBottom: SPACING.LARGE,
+    paddingLeft: SPACING.LARGE,
+    paddingRight: SPACING.LARGE,
+    fills: [{ type: 'SOLID', color: COLORS.LIGHT_BG }],
+    cornerRadius: BORDER_RADIUS.SMALL
+  })
 
   // Group by component set
   const groupedByComponent: any = {}
@@ -194,13 +193,12 @@ async function generateStickerSheet(data: any) {
     mainFrame.appendChild(nameText)
 
     // Create container for light/dark modes
-    const modesContainer = createFrame()
-    modesContainer.name = 'Modes Container'
-    modesContainer.layoutMode = 'HORIZONTAL'
-    modesContainer.primaryAxisSizingMode = 'AUTO'
-    modesContainer.counterAxisSizingMode = 'AUTO'
-    modesContainer.itemSpacing = SPACING.LARGE
-    modesContainer.fills = []
+    const modesContainer = createAutoLayoutFrame({
+      name: 'Modes Container',
+      layoutMode: 'HORIZONTAL',
+      itemSpacing: SPACING.LARGE,
+      fills: []
+    })
 
     // Create light mode section
     const lightSection = await createModeSection(compSet, combos, false, layoutConfig)
@@ -329,20 +327,19 @@ async function createInstance(compSet: ComponentSetNode, properties: any) {
 
 async function createModeSection(compSet: ComponentSetNode, combinations: any[], isDark: boolean, layoutConfig?: any) {
   // Create the Frame for the mode section
-  const sectionFrame = createFrame()
-  sectionFrame.name = isDark ? 'Dark Mode' : 'Light Mode'
-  sectionFrame.layoutMode = 'VERTICAL'
-  sectionFrame.primaryAxisSizingMode = 'AUTO'
-  sectionFrame.counterAxisSizingMode = 'AUTO'
-  sectionFrame.itemSpacing = SPACING.NORMAL
-  sectionFrame.paddingTop = SPACING.MEDIUM
-  sectionFrame.paddingBottom = SPACING.MEDIUM
-  sectionFrame.paddingLeft = SPACING.MEDIUM
-  sectionFrame.paddingRight = SPACING.MEDIUM
-  sectionFrame.cornerRadius = BORDER_RADIUS.SMALL
-  sectionFrame.fills = isDark
-    ? [{ type: 'SOLID', color: COLORS.DARK_BG }]
-    : [{ type: 'SOLID', color: COLORS.WHITE }]
+  const sectionFrame = createAutoLayoutFrame({
+    name: isDark ? 'Dark Mode' : 'Light Mode',
+    layoutMode: 'VERTICAL',
+    itemSpacing: SPACING.NORMAL,
+    paddingTop: SPACING.MEDIUM,
+    paddingBottom: SPACING.MEDIUM,
+    paddingLeft: SPACING.MEDIUM,
+    paddingRight: SPACING.MEDIUM,
+    cornerRadius: BORDER_RADIUS.SMALL,
+    fills: isDark
+      ? [{ type: 'SOLID', color: COLORS.DARK_BG }]
+      : [{ type: 'SOLID', color: COLORS.WHITE }]
+  })
 
   // Add mode title
   const modeTitle = figma.createText()
@@ -363,13 +360,12 @@ async function createModeSection(compSet: ComponentSetNode, combinations: any[],
 }
 
 async function createSimpleTable(compSet: ComponentSetNode, combinations: any[], isDark: boolean, layoutConfig?: any) {
-  const tableFrame = createFrame()
-  tableFrame.name = 'Table'
-  tableFrame.layoutMode = 'VERTICAL'
-  tableFrame.primaryAxisSizingMode = 'AUTO'
-  tableFrame.counterAxisSizingMode = 'AUTO'
-  tableFrame.itemSpacing = SPACING.TINY
-  tableFrame.fills = []
+  const tableFrame = createAutoLayoutFrame({
+    name: 'Table',
+    layoutMode: 'VERTICAL',
+    itemSpacing: SPACING.TINY,
+    fills: []
+  })
 
   if (combinations.length === 0) return tableFrame
 
@@ -388,10 +384,12 @@ async function createSimpleTable(compSet: ComponentSetNode, combinations: any[],
 
   if (allProps.length === 0) {
     // No variation - just show all instances in a row
-    const row = createFrame()
-    row.layoutMode = 'HORIZONTAL'
-    row.itemSpacing = SPACING.SMALL
-    row.fills = []
+    const row = createAutoLayoutFrame({
+      name: 'Row',
+      layoutMode: 'HORIZONTAL',
+      itemSpacing: SPACING.SMALL,
+      fills: []
+    })
     for (const combo of combinations) {
       const instance = await createInstance(compSet, combo.properties)
       row.appendChild(instance)
@@ -461,12 +459,13 @@ async function createSimpleTable(compSet: ComponentSetNode, combinations: any[],
   })
 
   // Create header row
-  const headerRow = createFrame()
-  headerRow.name = 'Header Row'
-  headerRow.layoutMode = 'HORIZONTAL'
-  headerRow.itemSpacing = SPACING.SMALL
-  headerRow.fills = []
-  headerRow.paddingBottom = SPACING.TINY
+  const headerRow = createAutoLayoutFrame({
+    name: 'Header Row',
+    layoutMode: 'HORIZONTAL',
+    itemSpacing: SPACING.SMALL,
+    paddingBottom: SPACING.TINY,
+    fills: []
+  })
 
   // Empty corner cell
   const cornerCell = createFrame()
@@ -520,11 +519,12 @@ async function createSimpleTable(compSet: ComponentSetNode, combinations: any[],
 
   // Create data rows
   for (const rowValue of rowValues) {
-    const dataRow = createFrame()
-    dataRow.name = `Row: ${rowValue}`
-    dataRow.layoutMode = 'HORIZONTAL'
-    dataRow.itemSpacing = SPACING.SMALL
-    dataRow.fills = []
+    const dataRow = createAutoLayoutFrame({
+      name: `Row: ${rowValue}`,
+      layoutMode: 'HORIZONTAL',
+      itemSpacing: SPACING.SMALL,
+      fills: []
+    })
 
     // Row label
     const rowLabelContainer = createFrame()
@@ -583,13 +583,12 @@ async function createSimpleTable(compSet: ComponentSetNode, combinations: any[],
 }
 
 async function createTable(compSet: ComponentSetNode, combinations: any[], rowProp: any, colProps: any[], isDark: boolean) {
-  const tableFrame = createFrame()
-  tableFrame.name = 'Table'
-  tableFrame.layoutMode = 'VERTICAL'
-  tableFrame.primaryAxisSizingMode = 'AUTO'
-  tableFrame.counterAxisSizingMode = 'AUTO'
-  tableFrame.itemSpacing = SPACING.SMALL
-  tableFrame.fills = []
+  const tableFrame = createAutoLayoutFrame({
+    name: 'Table',
+    layoutMode: 'VERTICAL',
+    itemSpacing: SPACING.SMALL,
+    fills: []
+  })
 
   // Get unique column combinations - sorted for consistency
   const columnCombos: any[] = []
@@ -627,14 +626,13 @@ async function createTable(compSet: ComponentSetNode, combinations: any[], rowPr
   sampleInstance.remove()
 
   // Create header row
-  const headerRow = createFrame()
-  headerRow.name = 'Header Row'
-  headerRow.layoutMode = 'HORIZONTAL'
-  headerRow.primaryAxisSizingMode = 'AUTO'
-  headerRow.counterAxisSizingMode = 'AUTO'
-  headerRow.itemSpacing = SPACING.NORMAL
-  headerRow.fills = []
-  headerRow.paddingBottom = SPACING.NORMAL
+  const headerRow = createAutoLayoutFrame({
+    name: 'Header Row',
+    layoutMode: 'HORIZONTAL',
+    itemSpacing: SPACING.NORMAL,
+    paddingBottom: SPACING.NORMAL,
+    fills: []
+  })
 
   // Empty corner cell for row labels
   const cornerCell = createFrame()
@@ -685,13 +683,12 @@ async function createTable(compSet: ComponentSetNode, combinations: any[], rowPr
   )).sort()
 
   for (const rowValue of uniqueRowValues) {
-    const dataRow = createFrame()
-    dataRow.name = `Row: ${rowValue}`
-    dataRow.layoutMode = 'HORIZONTAL'
-    dataRow.primaryAxisSizingMode = 'AUTO'
-    dataRow.counterAxisSizingMode = 'AUTO'
-    dataRow.itemSpacing = SPACING.NORMAL
-    dataRow.fills = []
+    const dataRow = createAutoLayoutFrame({
+      name: `Row: ${rowValue}`,
+      layoutMode: 'HORIZONTAL',
+      itemSpacing: SPACING.NORMAL,
+      fills: []
+    })
 
     // Row label
     const rowLabelContainer = createFrame()
