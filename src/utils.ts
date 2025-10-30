@@ -105,3 +105,37 @@ export function createFrame(): FrameNode {
   frame.clipsContent = false
   return frame
 }
+
+/**
+ * Configuration options for creating styled text
+ */
+export interface StyledTextConfig {
+  fontName: FontName
+  fontSize: number
+  characters: string
+  fills: ReadonlyArray<Paint> | typeof figma.mixed
+  textAlignHorizontal?: 'LEFT' | 'CENTER' | 'RIGHT' | 'JUSTIFIED'
+}
+
+/**
+ * Create a styled text node with font loading
+ * @param config - Text configuration options
+ * @returns Configured TextNode
+ */
+export async function createStyledText(config: StyledTextConfig): Promise<TextNode> {
+  const text = figma.createText()
+
+  // Load font before setting properties
+  await figma.loadFontAsync(config.fontName)
+
+  text.fontName = config.fontName
+  text.fontSize = config.fontSize
+  text.characters = config.characters
+  text.fills = config.fills
+
+  if (config.textAlignHorizontal !== undefined) {
+    text.textAlignHorizontal = config.textAlignHorizontal
+  }
+
+  return text
+}

@@ -1,6 +1,6 @@
 import { emit, on, showUI } from '@create-figma-plugin/utilities'
 import { UI_CONFIG, SPACING, COLORS, BORDER_RADIUS, FONTS, FONT_SIZES, FRAME_DIMENSIONS, TIMING, EXPORT_SCALE } from './constants'
-import { parseBooleanString, isBooleanString, cleanPropertyName, delay, createFrame, createAutoLayoutFrame } from './utils'
+import { parseBooleanString, isBooleanString, cleanPropertyName, delay, createFrame, createAutoLayoutFrame, createStyledText } from './utils'
 
 export default function () {
   showUI({ height: UI_CONFIG.HEIGHT, width: UI_CONFIG.WIDTH })
@@ -184,12 +184,12 @@ async function generateStickerSheet(data: any) {
     if (!compSet) continue
 
     // Add component name
-    const nameText = figma.createText()
-    await figma.loadFontAsync(FONTS.SEMI_BOLD)
-    nameText.fontName = FONTS.SEMI_BOLD
-    nameText.fontSize = FONT_SIZES.LARGE
-    nameText.characters = componentName
-    nameText.fills = [{ type: 'SOLID', color: COLORS.TEXT_DARK }]
+    const nameText = await createStyledText({
+      fontName: FONTS.SEMI_BOLD,
+      fontSize: FONT_SIZES.LARGE,
+      characters: componentName,
+      fills: [{ type: 'SOLID', color: COLORS.TEXT_DARK }]
+    })
     mainFrame.appendChild(nameText)
 
     // Create container for light/dark modes
@@ -342,14 +342,14 @@ async function createModeSection(compSet: ComponentSetNode, combinations: any[],
   })
 
   // Add mode title
-  const modeTitle = figma.createText()
-  await figma.loadFontAsync(FONTS.MEDIUM)
-  modeTitle.fontName = FONTS.MEDIUM
-  modeTitle.fontSize = FONT_SIZES.MEDIUM
-  modeTitle.characters = isDark ? 'Dark Mode' : 'Light Mode'
-  modeTitle.fills = isDark
-    ? [{ type: 'SOLID', color: COLORS.WHITE }]
-    : [{ type: 'SOLID', color: COLORS.TEXT_DARK }]
+  const modeTitle = await createStyledText({
+    fontName: FONTS.MEDIUM,
+    fontSize: FONT_SIZES.MEDIUM,
+    characters: isDark ? 'Dark Mode' : 'Light Mode',
+    fills: isDark
+      ? [{ type: 'SOLID', color: COLORS.WHITE }]
+      : [{ type: 'SOLID', color: COLORS.TEXT_DARK }]
+  })
   sectionFrame.appendChild(modeTitle)
 
   // Create table with all combinations
@@ -374,10 +374,6 @@ async function createSimpleTable(compSet: ComponentSetNode, combinations: any[],
   const instanceWidth = sampleInstance.width
   const instanceHeight = sampleInstance.height
   sampleInstance.remove()
-
-  // Load fonts
-  await figma.loadFontAsync(FONTS.SEMI_BOLD)
-  await figma.loadFontAsync(FONTS.REGULAR)
 
   // Analyze properties - determine which should be rows vs columns
   const allProps = analyzeVaryingProperties(combinations)
@@ -483,11 +479,6 @@ async function createSimpleTable(compSet: ComponentSetNode, combinations: any[],
     headerContainer.primaryAxisAlignItems = 'CENTER'
     headerContainer.fills = []
 
-    const headerText = figma.createText()
-    headerText.fontName = FONTS.SEMI_BOLD
-    headerText.fontSize = FONT_SIZES.TINY
-    headerText.textAlignHorizontal = 'CENTER'
-
     const headerLines: string[] = []
 
     // Always show column properties with labels
@@ -502,10 +493,15 @@ async function createSimpleTable(compSet: ComponentSetNode, combinations: any[],
       headerLines.push(`(${i + 1})`)
     }
 
-    headerText.characters = headerLines.join('\n')
-    headerText.fills = isDark
-      ? [{ type: 'SOLID', color: COLORS.TEXT_LIGHTER }]
-      : [{ type: 'SOLID', color: COLORS.TEXT_LIGHT }]
+    const headerText = await createStyledText({
+      fontName: FONTS.SEMI_BOLD,
+      fontSize: FONT_SIZES.TINY,
+      characters: headerLines.join('\n'),
+      fills: isDark
+        ? [{ type: 'SOLID', color: COLORS.TEXT_LIGHTER }]
+        : [{ type: 'SOLID', color: COLORS.TEXT_LIGHT }],
+      textAlignHorizontal: 'CENTER'
+    })
 
     headerContainer.appendChild(headerText)
 
@@ -534,14 +530,15 @@ async function createSimpleTable(compSet: ComponentSetNode, combinations: any[],
     rowLabelContainer.counterAxisAlignItems = 'CENTER'
     rowLabelContainer.fills = []
 
-    const rowLabel = figma.createText()
-    rowLabel.fontName = FONTS.REGULAR
-    rowLabel.fontSize = FONT_SIZES.SMALL
-    rowLabel.characters = `${rowProp.name}:\n${rowValue}`
-    rowLabel.textAlignHorizontal = 'CENTER'
-    rowLabel.fills = isDark
-      ? [{ type: 'SOLID', color: COLORS.TEXT_LIGHTEST }]
-      : [{ type: 'SOLID', color: COLORS.TEXT_MEDIUM_DARK }]
+    const rowLabel = await createStyledText({
+      fontName: FONTS.REGULAR,
+      fontSize: FONT_SIZES.SMALL,
+      characters: `${rowProp.name}:\n${rowValue}`,
+      fills: isDark
+        ? [{ type: 'SOLID', color: COLORS.TEXT_LIGHTEST }]
+        : [{ type: 'SOLID', color: COLORS.TEXT_MEDIUM_DARK }],
+      textAlignHorizontal: 'CENTER'
+    })
 
     rowLabelContainer.appendChild(rowLabel)
     dataRow.appendChild(rowLabelContainer)
@@ -641,7 +638,6 @@ async function createTable(compSet: ComponentSetNode, combinations: any[], rowPr
   headerRow.appendChild(cornerCell)
 
   // Column headers - show property name: (count) value
-  await figma.loadFontAsync(FONTS.SEMI_BOLD)
   let colIndex = 1
   for (const colCombo of columnCombos) {
     // Container for header to match instance width
@@ -652,20 +648,21 @@ async function createTable(compSet: ComponentSetNode, combinations: any[], rowPr
     headerContainer.counterAxisSizingMode = 'AUTO'
     headerContainer.fills = []
 
-    const headerText = figma.createText()
-    headerText.fontName = FONTS.SEMI_BOLD
-    headerText.fontSize = FONT_SIZES.TINY
-
     // Build header text with all column properties
     const headerLines: string[] = []
     for (const p of colProps) {
       const value = String(colCombo[p.name])
       headerLines.push(`${p.name}: (${colIndex}) ${value}`)
     }
-    headerText.characters = headerLines.join('\n')
-    headerText.fills = isDark
-      ? [{ type: 'SOLID', color: COLORS.TEXT_LIGHTER }]
-      : [{ type: 'SOLID', color: COLORS.TEXT_LIGHT }]
+
+    const headerText = await createStyledText({
+      fontName: FONTS.SEMI_BOLD,
+      fontSize: FONT_SIZES.TINY,
+      characters: headerLines.join('\n'),
+      fills: isDark
+        ? [{ type: 'SOLID', color: COLORS.TEXT_LIGHTER }]
+        : [{ type: 'SOLID', color: COLORS.TEXT_LIGHT }]
+    })
 
     headerContainer.appendChild(headerText)
     headerRow.appendChild(headerContainer)
@@ -675,8 +672,6 @@ async function createTable(compSet: ComponentSetNode, combinations: any[], rowPr
   tableFrame.appendChild(headerRow)
 
   // Create data rows
-  await figma.loadFontAsync(FONTS.REGULAR)
-
   // Get unique row values from actual combinations - sorted
   const uniqueRowValues = Array.from(new Set(
     combinations.map(c => String(c.properties[rowProp.name]))
@@ -698,13 +693,14 @@ async function createTable(compSet: ComponentSetNode, combinations: any[], rowPr
     rowLabelContainer.counterAxisAlignItems = 'CENTER'
     rowLabelContainer.fills = []
 
-    const rowLabel = figma.createText()
-    rowLabel.fontName = FONTS.REGULAR
-    rowLabel.fontSize = FONT_SIZES.SMALL
-    rowLabel.characters = rowValue
-    rowLabel.fills = isDark
-      ? [{ type: 'SOLID', color: COLORS.TEXT_LIGHTEST }]
-      : [{ type: 'SOLID', color: COLORS.TEXT_MEDIUM_DARK }]
+    const rowLabel = await createStyledText({
+      fontName: FONTS.REGULAR,
+      fontSize: FONT_SIZES.SMALL,
+      characters: rowValue,
+      fills: isDark
+        ? [{ type: 'SOLID', color: COLORS.TEXT_LIGHTEST }]
+        : [{ type: 'SOLID', color: COLORS.TEXT_MEDIUM_DARK }]
+    })
 
     rowLabelContainer.appendChild(rowLabel)
     dataRow.appendChild(rowLabelContainer)
