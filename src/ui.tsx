@@ -1922,29 +1922,29 @@ function Plugin() {
         flexShrink: 0
       }}>
         {!hasSelection ? (
-          <Tooltip content="Please select at least one item" position="top">
-            <div style={{ display: 'flex' }}>
+          <Tooltip content="Please select at least one item" position="top" fullWidth>
+            <div style={{ display: 'flex', width: '100%' }}>
               <Button fullWidth style={{ borderRadius: 0, height: '52px', justifyContent: 'flex-start', border: 'none' }} onClick={() => setIsLayoutModalOpen(true)} disabled={!hasSelection}>
-                <div style={{ transform: 'rotate(45deg)', display: 'flex', alignItems: 'center' }}>
+                <div style={{ transform: 'rotate(45deg)', display: 'flex', alignItems: 'center', pointerEvents: 'none' }}>
                   <IconComponent16 />
                 </div>
-                <span style={{ marginLeft: 'var(--spacing-sm)' }}>Preview Layout</span>
+                <span style={{ marginLeft: 'var(--spacing-sm)', pointerEvents: 'none' }}>Preview Layout</span>
               </Button>
               <Button style={{ borderRadius: 0, height: '52px', justifyContent: 'center', border: 'none', paddingLeft: 'var(--spacing-xl)', paddingRight: 'var(--spacing-xl)' }} onClick={() => handleGenerate()} disabled={!hasSelection}>
-                <IconAi16 />
+                <IconAi16 style={{ pointerEvents: 'none' }} />
               </Button>
             </div>
           </Tooltip>
         ) : (
-          <div style={{ display: 'flex' }}>
+          <div style={{ display: 'flex', width: '100%' }}>
             <Button fullWidth style={{ borderRadius: 0, height: '52px', justifyContent: 'flex-start', border: 'none' }} onClick={() => setIsLayoutModalOpen(true)} disabled={!hasSelection}>
-              <div style={{ transform: 'rotate(45deg)', display: 'flex', alignItems: 'center' }}>
+              <div style={{ transform: 'rotate(45deg)', display: 'flex', alignItems: 'center', pointerEvents: 'none' }}>
                 <IconComponent16 />
               </div>
-              <span style={{ marginLeft: 'var(--spacing-sm)' }}>Preview Layout</span>
+              <span style={{ marginLeft: 'var(--spacing-sm)', pointerEvents: 'none' }}>Preview Layout</span>
             </Button>
             <Button style={{ borderRadius: 0, height: '52px', justifyContent: 'center', border: 'none', paddingLeft: 'var(--spacing-xl)', paddingRight: 'var(--spacing-xl)' }} onClick={() => handleGenerate()} disabled={!hasSelection}>
-              <IconAi16 />
+              <IconAi16 style={{ pointerEvents: 'none' }} />
             </Button>
           </div>
         )}
