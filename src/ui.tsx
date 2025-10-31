@@ -24,7 +24,7 @@ import * as yaml from 'js-yaml'
 import type { AnovaSpec } from './types/anova'
 import { filterValidVariants } from './types/anova'
 import { themeStyles } from './styles/theme'
-import { Button, Checkbox, IconButton, Text, Modal, Toggle, Input, TextArea, Separator, Spacer } from './components'
+import { Button, Checkbox, IconButton, Text, Modal, Toggle, Input, TextArea, Separator, Spacer, Tooltip } from './components'
 
 type DataSource = 'figma-direct' | 'anova'
 
@@ -1921,17 +1921,33 @@ function Plugin() {
         background: 'var(--figma-color-bg)',
         flexShrink: 0
       }}>
-        <div style={{ display: 'flex' }}>
-          <Button fullWidth style={{ borderRadius: 0, height: '52px', justifyContent: 'flex-start', border: 'none' }} onClick={() => setIsLayoutModalOpen(true)} disabled={!hasSelection}>
-            <div style={{ transform: 'rotate(45deg)', display: 'flex', alignItems: 'center' }}>
-              <IconComponent16 />
+        {!hasSelection ? (
+          <Tooltip content="Please select at least one item" position="top">
+            <div style={{ display: 'flex' }}>
+              <Button fullWidth style={{ borderRadius: 0, height: '52px', justifyContent: 'flex-start', border: 'none' }} onClick={() => setIsLayoutModalOpen(true)} disabled={!hasSelection}>
+                <div style={{ transform: 'rotate(45deg)', display: 'flex', alignItems: 'center' }}>
+                  <IconComponent16 />
+                </div>
+                <span style={{ marginLeft: 'var(--spacing-sm)' }}>Preview Layout</span>
+              </Button>
+              <Button style={{ borderRadius: 0, height: '52px', justifyContent: 'center', border: 'none', paddingLeft: 'var(--spacing-xl)', paddingRight: 'var(--spacing-xl)' }} onClick={() => handleGenerate()} disabled={!hasSelection}>
+                <IconAi16 />
+              </Button>
             </div>
-            <span style={{ marginLeft: 'var(--spacing-sm)' }}>Preview Layout</span>
-          </Button>
-          <Button style={{ borderRadius: 0, height: '52px', justifyContent: 'center', border: 'none', paddingLeft: 'var(--spacing-xl)', paddingRight: 'var(--spacing-xl)' }} onClick={() => handleGenerate()} disabled={!hasSelection}>
-            <IconAi16 />
-          </Button>
-        </div>
+          </Tooltip>
+        ) : (
+          <div style={{ display: 'flex' }}>
+            <Button fullWidth style={{ borderRadius: 0, height: '52px', justifyContent: 'flex-start', border: 'none' }} onClick={() => setIsLayoutModalOpen(true)} disabled={!hasSelection}>
+              <div style={{ transform: 'rotate(45deg)', display: 'flex', alignItems: 'center' }}>
+                <IconComponent16 />
+              </div>
+              <span style={{ marginLeft: 'var(--spacing-sm)' }}>Preview Layout</span>
+            </Button>
+            <Button style={{ borderRadius: 0, height: '52px', justifyContent: 'center', border: 'none', paddingLeft: 'var(--spacing-xl)', paddingRight: 'var(--spacing-xl)' }} onClick={() => handleGenerate()} disabled={!hasSelection}>
+              <IconAi16 />
+            </Button>
+          </div>
+        )}
       </div>
       </div>
 
