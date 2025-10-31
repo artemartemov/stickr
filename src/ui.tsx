@@ -2444,11 +2444,11 @@ function Plugin() {
                       </div>
                     )}
 
-                  <div style={{ display: 'flex', gap: 'var(--spacing-sm)', justifyContent: 'flex-end' }}>
-                    <Button secondary onClick={() => setIsLayoutModalOpen(false)}>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <Button fullWidth style={{ borderRadius: 0, height: '52px', justifyContent: 'flex-start', border: 'none' }} onClick={() => setIsLayoutModalOpen(false)}>
                       Cancel
                     </Button>
-                    <Button onClick={() => {
+                    <Button fullWidth style={{ borderRadius: 0, height: '52px', justifyContent: 'flex-start', border: 'none' }} onClick={() => {
                       if (!currentRowProp) return
 
                       // Filter out excluded combinations before generating
