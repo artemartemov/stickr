@@ -1923,7 +1923,9 @@ function Plugin() {
       }}>
         <div style={{ display: 'flex' }}>
           <Button fullWidth style={{ borderRadius: 0, height: '52px', justifyContent: 'flex-start', border: 'none' }} onClick={() => setIsLayoutModalOpen(true)} disabled={!hasSelection}>
-            <IconComponent16 />
+            <div style={{ transform: 'rotate(45deg)', display: 'flex', alignItems: 'center' }}>
+              <IconComponent16 />
+            </div>
             <span style={{ marginLeft: 'var(--spacing-sm)' }}>Preview Layout</span>
           </Button>
           <Button style={{ borderRadius: 0, height: '52px', justifyContent: 'center', border: 'none', paddingLeft: 'var(--spacing-xl)', paddingRight: 'var(--spacing-xl)' }} onClick={() => handleGenerate()} disabled={!hasSelection}>
