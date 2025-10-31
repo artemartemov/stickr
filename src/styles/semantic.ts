@@ -86,7 +86,8 @@ export const lightMode = {
 
   // ===== TOOLTIP =====
   tooltip: {
-    bg: primitives.color.gray900,
+    bg: primitives.color.gray900,        // #222 - default tooltip background
+    bgDark: primitives.color.black,      // #000 - darker variant for emphasis
     text: primitives.color.white,
   },
 
@@ -181,7 +182,8 @@ export const darkMode = {
 
   // ===== TOOLTIP =====
   tooltip: {
-    bg: primitives.color.white,
+    bg: primitives.color.white,          // Default tooltip background for dark mode
+    bgDark: primitives.color.gray50,     // Lighter variant for emphasis in dark mode
     text: primitives.color.gray900,
   },
 

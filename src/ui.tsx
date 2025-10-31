@@ -1943,7 +1943,7 @@ function Plugin() {
               </div>
               <span style={{ marginLeft: 'var(--spacing-sm)', pointerEvents: 'none' }}>Preview Layout</span>
             </Button>
-            <Tooltip content="Generate Stickersheet" position="left" customBg="#000">
+            <Tooltip content="Generate Stickersheet" position="left" variant="dark">
               <Button style={{ borderRadius: 0, height: '52px', justifyContent: 'center', border: 'none', paddingLeft: 'var(--spacing-xl)', paddingRight: 'var(--spacing-xl)' }} onClick={() => handleGenerate()} disabled={!hasSelection}>
                 <IconAi16 style={{ pointerEvents: 'none' }} />
               </Button>
@@ -2070,13 +2070,43 @@ function Plugin() {
             isOpen={isLayoutModalOpen}
           title="Layout Preview & Cell Exclusion"
           onClose={() => setIsLayoutModalOpen(false)}
+          footer={
+            <div style={{ display: 'flex', margin: 0, padding: 0 }}>
+              <Button fullWidth style={{ borderRadius: 0, height: '52px', justifyContent: 'flex-start', border: 'none' }} onClick={() => {
+                if (!currentRowProp) return
+
+                // Filter out excluded combinations before generating
+                const combinationsToGenerate = selectedCombos.filter(combo => {
+                  // Build the cell key for this combination
+                  const rowValue = String(combo.properties[currentRowProp])
+                  const colCombo = currentColProps.map(prop => String(combo.properties[prop]))
+                  const cellKey = getCellKey(rowValue, colCombo)
+
+                  // Include if not excluded
+                  return !excludedCells.has(cellKey)
+                })
+
+                console.log('🎨 Generating with exclusions:', {
+                  total: selectedCombos.length,
+                  excluded: excludedCells.size,
+                  toGenerate: combinationsToGenerate.length
+                })
+
+                // Generate directly with filtered combinations
+                handleGenerate(combinationsToGenerate)
+                setIsLayoutModalOpen(false)
+              }} disabled={!currentRowProp || currentColProps.length === 0}>
+                <IconAi16 style={{ pointerEvents: 'none' }} />
+                <span style={{ marginLeft: 'var(--spacing-sm)', pointerEvents: 'none' }}>Generate</span>
+              </Button>
+              <Tooltip content="Cancel" position="left" variant="dark">
+                <Button style={{ borderRadius: 0, height: '52px', justifyContent: 'center', border: 'none', padding: 'var(--spacing-sm)', width: '52px', flexShrink: 0 }} onClick={() => setIsLayoutModalOpen(false)}>
+                  <IconClose16 style={{ pointerEvents: 'none' }} />
+                </Button>
+              </Tooltip>
+            </div>
+          }
           >
-            <div style={{
-              padding: '16px',
-              maxWidth: '568px',
-              width: '100%',
-              boxSizing: 'border-box'
-            }}>
               {propArray.length < 2 ? (
                 <div>
                   <Muted>Need at least 2 varying properties to customize layout</Muted>
@@ -2444,41 +2474,8 @@ function Plugin() {
                       </div>
                     )}
 
-                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                    <Button fullWidth style={{ borderRadius: 0, height: '52px', justifyContent: 'flex-start', border: 'none' }} onClick={() => {
-                      if (!currentRowProp) return
-
-                      // Filter out excluded combinations before generating
-                      const combinationsToGenerate = selectedCombos.filter(combo => {
-                        // Build the cell key for this combination
-                        const rowValue = String(combo.properties[currentRowProp])
-                        const colCombo = currentColProps.map(prop => String(combo.properties[prop]))
-                        const cellKey = getCellKey(rowValue, colCombo)
-
-                        // Include if not excluded
-                        return !excludedCells.has(cellKey)
-                      })
-
-                      console.log('🎨 Generating with exclusions:', {
-                        total: selectedCombos.length,
-                        excluded: excludedCells.size,
-                        toGenerate: combinationsToGenerate.length
-                      })
-
-                      // Generate directly with filtered combinations
-                      handleGenerate(combinationsToGenerate)
-                      setIsLayoutModalOpen(false)
-                    }} disabled={!currentRowProp || currentColProps.length === 0}>
-                      <IconAi16 style={{ pointerEvents: 'none' }} />
-                      <span style={{ marginLeft: 'var(--spacing-sm)', pointerEvents: 'none' }}>Generate</span>
-                    </Button>
-                    <Button fullWidth style={{ borderRadius: 0, height: '52px', justifyContent: 'flex-start', border: 'none' }} onClick={() => setIsLayoutModalOpen(false)}>
-                      Cancel
-                    </Button>
-                  </div>
-                </>
-              )}
-            </div>
+              </>
+            )}
           </Modal>
         )
       })()}
