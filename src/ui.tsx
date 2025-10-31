@@ -14,7 +14,9 @@ import {
   DropdownOption,
   TextboxMultiline,
   IconPlus16,
-  IconClose16
+  IconClose16,
+  IconAi16,
+  IconComponent16
 } from '@create-figma-plugin/ui'
 import { h, Fragment } from 'preact'
 import { useState, useEffect } from 'preact/hooks'
@@ -1921,10 +1923,11 @@ function Plugin() {
       }}>
         <div style={{ display: 'flex' }}>
           <Button fullWidth style={{ borderRadius: 0, height: '52px', justifyContent: 'flex-start', border: 'none' }} onClick={() => setIsLayoutModalOpen(true)} disabled={!hasSelection}>
-            Preview Layout
+            <IconComponent16 />
+            <span style={{ marginLeft: 'var(--spacing-sm)' }}>Preview Layout</span>
           </Button>
-          <Button style={{ borderRadius: 0, height: '52px', justifyContent: 'flex-start', border: 'none' }} onClick={() => handleGenerate()} disabled={!hasSelection}>
-            Generate
+          <Button style={{ borderRadius: 0, height: '52px', justifyContent: 'center', border: 'none', paddingLeft: 'var(--spacing-xl)', paddingRight: 'var(--spacing-xl)' }} onClick={() => handleGenerate()} disabled={!hasSelection}>
+            <IconAi16 />
           </Button>
         </div>
       </div>
