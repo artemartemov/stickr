@@ -1923,7 +1923,7 @@ function Plugin() {
           <Button fullWidth style={{ borderRadius: 0, height: '52px', justifyContent: 'flex-start', border: 'none' }} onClick={() => setIsLayoutModalOpen(true)} disabled={!hasSelection}>
             Preview Layout
           </Button>
-          <Button fullWidth secondary style={{ borderRadius: 0, height: '52px', justifyContent: 'flex-start', border: 'none' }} onClick={() => handleGenerate()} disabled={!hasSelection}>
+          <Button style={{ borderRadius: 0, height: '52px', justifyContent: 'flex-start', border: 'none' }} onClick={() => handleGenerate()} disabled={!hasSelection}>
             Generate
           </Button>
         </div>
