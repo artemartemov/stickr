@@ -2149,8 +2149,7 @@ function Plugin() {
 
                           {/* Row/Column Buttons */}
                           <div style={{ display: 'flex', gap: 'var(--spacing-xxs)', marginLeft: 'var(--spacing-lg)' }}>
-                            <Button
-                              secondary={!isRowProp}
+                            <button
                               onClick={() => {
                                 setLayoutRowProperty(prop)
                                 // Remove from columns if selected as row
@@ -2160,24 +2159,84 @@ function Plugin() {
                               }}
                               style={{
                                 minWidth: '50px',
-                                padding: 'var(--spacing-xxs) var(--spacing-sm)',
-                                fontSize: '10px'
+                                height: '24px',
+                                padding: '0 var(--spacing-sm)',
+                                fontSize: '12px',
+                                fontFamily: "'IBM Plex Mono', monospace",
+                                textTransform: 'uppercase',
+                                letterSpacing: '1px',
+                                borderRadius: '3px',
+                                border: 'none',
+                                background: isRowProp ? '#f5f5f5' : 'transparent',
+                                color: 'var(--text-primary)',
+                                cursor: 'pointer',
+                                transition: 'background-color 0.15s ease'
+                              }}
+                              onMouseEnter={(e) => {
+                                if (!isRowProp) {
+                                  (e.target as HTMLButtonElement).style.backgroundColor = '#eee'
+                                }
+                              }}
+                              onMouseLeave={(e) => {
+                                if (!isRowProp) {
+                                  (e.target as HTMLButtonElement).style.backgroundColor = 'transparent'
+                                }
+                              }}
+                              onMouseDown={(e) => {
+                                if (isRowProp) {
+                                  (e.target as HTMLButtonElement).style.backgroundColor = '#f5f5f5'
+                                }
+                              }}
+                              onMouseUp={(e) => {
+                                if (isRowProp) {
+                                  (e.target as HTMLButtonElement).style.backgroundColor = '#f5f5f5'
+                                }
                               }}
                             >
                               Row
-                            </Button>
-                            <Button
-                              secondary={!isColProp}
+                            </button>
+                            <button
                               disabled={isRowProp}
                               onClick={() => handleColumnToggle(prop)}
                               style={{
                                 minWidth: '50px',
-                                padding: 'var(--spacing-xxs) var(--spacing-sm)',
-                                fontSize: '10px'
+                                height: '24px',
+                                padding: '0 var(--spacing-sm)',
+                                fontSize: '12px',
+                                fontFamily: "'IBM Plex Mono', monospace",
+                                textTransform: 'uppercase',
+                                letterSpacing: '1px',
+                                borderRadius: '3px',
+                                border: 'none',
+                                background: isColProp ? '#f5f5f5' : 'transparent',
+                                color: isRowProp ? 'var(--text-secondary)' : 'var(--text-primary)',
+                                cursor: isRowProp ? 'not-allowed' : 'pointer',
+                                opacity: isRowProp ? 0.5 : 1,
+                                transition: 'background-color 0.15s ease'
+                              }}
+                              onMouseEnter={(e) => {
+                                if (!isColProp && !isRowProp) {
+                                  (e.target as HTMLButtonElement).style.backgroundColor = '#eee'
+                                }
+                              }}
+                              onMouseLeave={(e) => {
+                                if (!isColProp && !isRowProp) {
+                                  (e.target as HTMLButtonElement).style.backgroundColor = 'transparent'
+                                }
+                              }}
+                              onMouseDown={(e) => {
+                                if (isColProp) {
+                                  (e.target as HTMLButtonElement).style.backgroundColor = '#f5f5f5'
+                                }
+                              }}
+                              onMouseUp={(e) => {
+                                if (isColProp) {
+                                  (e.target as HTMLButtonElement).style.backgroundColor = '#f5f5f5'
+                                }
                               }}
                             >
                               Column
-                            </Button>
+                            </button>
                           </div>
                         </div>
                       )

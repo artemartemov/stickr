@@ -770,10 +770,10 @@
     }
   });
 
-  // ../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/965690f5-2b8f-437e-a355-0b595f555dd5/loading-indicator.module.js
+  // ../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/4aefa05b-fa1a-4c90-b1ce-a6e3dc5aa54c/loading-indicator.module.js
   var loading_indicator_module_default;
   var init_loading_indicator_module = __esm({
-    "../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/965690f5-2b8f-437e-a355-0b595f555dd5/loading-indicator.module.js"() {
+    "../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/4aefa05b-fa1a-4c90-b1ce-a6e3dc5aa54c/loading-indicator.module.js"() {
       if (document.getElementById("cf41a494a6") === null) {
         const element = document.createElement("style");
         element.id = "cf41a494a6";
@@ -876,10 +876,10 @@
     }
   });
 
-  // ../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/4a307662-9043-44a1-a8d7-3323c2e08fa0/menu.module.js
+  // ../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/a0cd3950-3c96-4b1b-8945-f2de86a44eda/menu.module.js
   var menu_module_default;
   var init_menu_module = __esm({
-    "../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/4a307662-9043-44a1-a8d7-3323c2e08fa0/menu.module.js"() {
+    "../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/a0cd3950-3c96-4b1b-8945-f2de86a44eda/menu.module.js"() {
       if (document.getElementById("208e501b67") === null) {
         const element = document.createElement("style");
         element.id = "208e501b67";
@@ -1102,10 +1102,10 @@
     }
   });
 
-  // ../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/2a34a77d-1c3a-41ef-8578-72eeb52e64f4/dropdown.module.js
+  // ../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/02b2eee2-0a72-4ac6-be27-32f3ea8aceea/dropdown.module.js
   var dropdown_module_default;
   var init_dropdown_module = __esm({
-    "../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/2a34a77d-1c3a-41ef-8578-72eeb52e64f4/dropdown.module.js"() {
+    "../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/02b2eee2-0a72-4ac6-be27-32f3ea8aceea/dropdown.module.js"() {
       if (document.getElementById("a12e202715") === null) {
         const element = document.createElement("style");
         element.id = "a12e202715";
@@ -1546,10 +1546,10 @@
     }
   });
 
-  // ../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/91de3911-959c-4e3d-9a6c-8a26d5bfe27f/selectable-item.module.js
+  // ../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/0cbf1ffb-5385-42ed-beb9-3c92223ae710/selectable-item.module.js
   var selectable_item_module_default;
   var init_selectable_item_module = __esm({
-    "../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/91de3911-959c-4e3d-9a6c-8a26d5bfe27f/selectable-item.module.js"() {
+    "../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/0cbf1ffb-5385-42ed-beb9-3c92223ae710/selectable-item.module.js"() {
       if (document.getElementById("e9504ce0e1") === null) {
         const element = document.createElement("style");
         element.id = "e9504ce0e1";
@@ -1693,10 +1693,10 @@
     }
   });
 
-  // ../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/8862d01e-d721-4587-b164-7c4f6b3d854e/textbox-multiline.module.js
+  // ../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/31da5775-3141-4a8e-9861-bfd73cb9afb2/textbox-multiline.module.js
   var textbox_multiline_module_default;
   var init_textbox_multiline_module = __esm({
-    "../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/8862d01e-d721-4587-b164-7c4f6b3d854e/textbox-multiline.module.js"() {
+    "../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/31da5775-3141-4a8e-9861-bfd73cb9afb2/textbox-multiline.module.js"() {
       if (document.getElementById("97ee6329c7") === null) {
         const element = document.createElement("style");
         element.id = "97ee6329c7";
@@ -1969,10 +1969,10 @@
     }
   });
 
-  // ../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/9e4747cf-6660-4aef-a885-d466bbf12176/muted.module.js
+  // ../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/115a3722-91be-4674-b636-0e1d1c4fb712/muted.module.js
   var muted_module_default;
   var init_muted_module = __esm({
-    "../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/9e4747cf-6660-4aef-a885-d466bbf12176/muted.module.js"() {
+    "../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/115a3722-91be-4674-b636-0e1d1c4fb712/muted.module.js"() {
       if (document.getElementById("6ce13d64c8") === null) {
         const element = document.createElement("style");
         element.id = "6ce13d64c8";
@@ -2001,10 +2001,10 @@
     }
   });
 
-  // ../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/8c11197b-81fb-454e-870f-95c6594b517b/vertical-space.module.js
+  // ../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/69a3ef99-1c21-4716-9547-6dacf9f2fd7e/vertical-space.module.js
   var vertical_space_module_default;
   var init_vertical_space_module = __esm({
-    "../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/8c11197b-81fb-454e-870f-95c6594b517b/vertical-space.module.js"() {
+    "../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/69a3ef99-1c21-4716-9547-6dacf9f2fd7e/vertical-space.module.js"() {
       if (document.getElementById("07af95abe2") === null) {
         const element = document.createElement("style");
         element.id = "07af95abe2";
@@ -2045,9 +2045,9 @@
     }
   });
 
-  // ../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/793a6f2b-6761-4d95-99ac-a9c8edf3f142/base.js
+  // ../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/29c4460b-64b6-4589-bc45-b1857a27c64f/base.js
   var init_base = __esm({
-    "../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/793a6f2b-6761-4d95-99ac-a9c8edf3f142/base.js"() {
+    "../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/29c4460b-64b6-4589-bc45-b1857a27c64f/base.js"() {
       if (document.getElementById("779e0f5e90") === null) {
         const element = document.createElement("style");
         element.id = "779e0f5e90";
@@ -7530,9 +7530,8 @@ ${generateCSSVars(darkMode.progress, "progress")}
             },
             /* @__PURE__ */ _("div", { style: { flex: 1 } }, /* @__PURE__ */ _(Text, { style: { fontSize: "11px", display: "block", marginBottom: "var(--spacing-xxxs)" } }, prop), propValues[prop] && /* @__PURE__ */ _(Muted, { style: { fontSize: "10px" } }, propValues[prop].length, " values: ", propValues[prop].slice(0, 3).join(", "), propValues[prop].length > 3 ? "..." : "")),
             /* @__PURE__ */ _("div", { style: { display: "flex", gap: "var(--spacing-xxs)", marginLeft: "var(--spacing-lg)" } }, /* @__PURE__ */ _(
-              Button,
+              "button",
               {
-                secondary: !isRowProp,
                 onClick: () => {
                   setLayoutRowProperty(prop);
                   if (isColProp) {
@@ -7541,21 +7540,81 @@ ${generateCSSVars(darkMode.progress, "progress")}
                 },
                 style: {
                   minWidth: "50px",
-                  padding: "var(--spacing-xxs) var(--spacing-sm)",
-                  fontSize: "10px"
+                  height: "24px",
+                  padding: "0 var(--spacing-sm)",
+                  fontSize: "12px",
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  textTransform: "uppercase",
+                  letterSpacing: "1px",
+                  borderRadius: "3px",
+                  border: "none",
+                  background: isRowProp ? "#f5f5f5" : "transparent",
+                  color: "var(--text-primary)",
+                  cursor: "pointer",
+                  transition: "background-color 0.15s ease"
+                },
+                onMouseEnter: (e3) => {
+                  if (!isRowProp) {
+                    e3.target.style.backgroundColor = "#eee";
+                  }
+                },
+                onMouseLeave: (e3) => {
+                  if (!isRowProp) {
+                    e3.target.style.backgroundColor = "transparent";
+                  }
+                },
+                onMouseDown: (e3) => {
+                  if (isRowProp) {
+                    e3.target.style.backgroundColor = "#f5f5f5";
+                  }
+                },
+                onMouseUp: (e3) => {
+                  if (isRowProp) {
+                    e3.target.style.backgroundColor = "#f5f5f5";
+                  }
                 }
               },
               "Row"
             ), /* @__PURE__ */ _(
-              Button,
+              "button",
               {
-                secondary: !isColProp,
                 disabled: isRowProp,
                 onClick: () => handleColumnToggle(prop),
                 style: {
                   minWidth: "50px",
-                  padding: "var(--spacing-xxs) var(--spacing-sm)",
-                  fontSize: "10px"
+                  height: "24px",
+                  padding: "0 var(--spacing-sm)",
+                  fontSize: "12px",
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  textTransform: "uppercase",
+                  letterSpacing: "1px",
+                  borderRadius: "3px",
+                  border: "none",
+                  background: isColProp ? "#f5f5f5" : "transparent",
+                  color: isRowProp ? "var(--text-secondary)" : "var(--text-primary)",
+                  cursor: isRowProp ? "not-allowed" : "pointer",
+                  opacity: isRowProp ? 0.5 : 1,
+                  transition: "background-color 0.15s ease"
+                },
+                onMouseEnter: (e3) => {
+                  if (!isColProp && !isRowProp) {
+                    e3.target.style.backgroundColor = "#eee";
+                  }
+                },
+                onMouseLeave: (e3) => {
+                  if (!isColProp && !isRowProp) {
+                    e3.target.style.backgroundColor = "transparent";
+                  }
+                },
+                onMouseDown: (e3) => {
+                  if (isColProp) {
+                    e3.target.style.backgroundColor = "#f5f5f5";
+                  }
+                },
+                onMouseUp: (e3) => {
+                  if (isColProp) {
+                    e3.target.style.backgroundColor = "#f5f5f5";
+                  }
                 }
               },
               "Column"
