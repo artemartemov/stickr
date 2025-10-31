@@ -1917,14 +1917,13 @@ function Plugin() {
       {/* Sticky Generate Buttons */}
       <div style={{
         background: 'var(--figma-color-bg)',
-        borderTop: '1px solid var(--figma-color-border)',
         flexShrink: 0
       }}>
-        <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
-          <Button fullWidth style={{ borderRadius: 0 }} onClick={() => setIsLayoutModalOpen(true)} disabled={!hasSelection}>
+        <div style={{ display: 'flex' }}>
+          <Button fullWidth style={{ borderRadius: 0, height: '52px', justifyContent: 'flex-start', border: 'none' }} onClick={() => setIsLayoutModalOpen(true)} disabled={!hasSelection}>
             Preview Layout
           </Button>
-          <Button fullWidth secondary style={{ borderRadius: 0 }} onClick={() => handleGenerate()} disabled={!hasSelection}>
+          <Button fullWidth secondary style={{ borderRadius: 0, height: '52px', justifyContent: 'flex-start', border: 'none' }} onClick={() => handleGenerate()} disabled={!hasSelection}>
             Generate
           </Button>
         </div>
