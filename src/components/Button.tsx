@@ -88,6 +88,7 @@ export function Button({
     primary: {
       background: disabled ? 'var(--button-disabled-bg)' : 'var(--button-bg)',
       color: disabled ? 'var(--button-disabled-text)' : 'var(--button-text)',
+      borderRadius: 'var(--border-radius-xl)',  // 6px from DS Coverage CTA
     },
     secondary: {
       background: 'var(--button-secondary-bg)',
@@ -148,6 +149,26 @@ export function Button({
     }
   };
 
+  const handleMouseDown = (e: any) => {
+    if (disabled) return;
+    const target = e.currentTarget as HTMLButtonElement;
+    
+    if (variant === 'tertiary') {
+      target.style.background = 'var(--button-tertiary-bgActive)';  // #f5f5f5
+    } else if (variant === 'primary') {
+      target.style.background = 'var(--button-bg)';
+    }
+  };
+
+  const handleMouseUp = (e: any) => {
+    if (disabled) return;
+    const target = e.currentTarget as HTMLButtonElement;
+    
+    if (variant === 'tertiary') {
+      target.style.background = 'var(--button-tertiary-bgHover)';  // Return to hover state
+    }
+  };
+
   return (
     <button
       onClick={onClick}
@@ -155,6 +176,8 @@ export function Button({
       style={combinedStyles}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      onMouseDown={handleMouseDown}
+      onMouseUp={handleMouseUp}
     >
       {children}
     </button>
