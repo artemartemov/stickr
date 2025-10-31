@@ -11,7 +11,7 @@ export const primitives = {
     white: '#FFFFFF',
     gray50: '#F0F0F0',
     gray100: '#F5F5F5',
-    gray150: '#E8E8E8',
+    gray150: '#E9E9E9',  // DS Coverage input hover
     gray200: '#E5E5E5',
     gray300: '#D4D4D4',
     gray400: '#BDBDBD',
@@ -21,6 +21,8 @@ export const primitives = {
     gray850: '#242424',
     gray875: '#232323',
     gray900: '#222222',
+    gray950: '#111111',  // DS Coverage button hover
+    grayEEE: '#EEEEEE',  // DS Coverage tertiary button hover
     black: '#000000',
 
     // Brand/Accent
@@ -96,9 +98,11 @@ export const primitives = {
   // ===== BORDER RADIUS =====
   borderRadius: {
     none: '0',
-    sm: '2px',
-    md: '3px',
-    lg: '4px',
+    sm: '2px',     // Input fields
+    md: '3px',     // Random button
+    lg: '4px',     // General use
+    xl: '6px',     // CTA button, textarea
+    xxl: '8px',    // Containers (svgContainer)
     full: '50%',
   },
 
@@ -126,10 +130,17 @@ export const primitives = {
     input: {
       checkbox: '14px',
       field: '24px',  // DS Coverage input height
+      width: {
+        sm: '36px',   // DS Coverage number input
+        md: '40px',   // DS Coverage number input
+      },
       toggle: {
         width: '32px',
         height: '24px',
       },
+    },
+    textarea: {
+      height: '80px',  // DS Coverage graphData textarea
     },
   },
 

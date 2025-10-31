@@ -36,8 +36,8 @@ export const lightMode = {
   // ===== BUTTON =====
   button: {
     primary: {
-      bg: primitives.color.gray900,
-      bgHover: primitives.color.black,
+      bg: primitives.color.gray900,         // #222
+      bgHover: primitives.color.gray950,     // #111 from DS Coverage
       text: primitives.color.white,
     },
     secondary: {
@@ -53,7 +53,8 @@ export const lightMode = {
     },
     tertiary: {
       bg: 'transparent',                    // Transparent until hover
-      bgHover: primitives.color.gray100,    // #f5f5f5 from DS Coverage SHFFL button
+      bgHover: primitives.color.grayEEE,    // #eee from DS Coverage SHFFL button hover
+      bgActive: primitives.color.gray100,   // #f5f5f5 from DS Coverage SHFFL button active
       text: primitives.color.gray900,
     },
     disabled: {
