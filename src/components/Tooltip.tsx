@@ -12,9 +12,10 @@ interface TooltipProps {
   disabled?: boolean;
   disabledContent?: string;
   fullWidth?: boolean;
+  customBg?: string;
 }
 
-export function Tooltip({ content, children, position = 'left', disabled = false, disabledContent, fullWidth = false }: TooltipProps) {
+export function Tooltip({ content, children, position = 'left', disabled = false, disabledContent, fullWidth = false, customBg }: TooltipProps) {
   const [isVisible, setIsVisible] = useState(false);
 
   const displayContent = disabled && disabledContent ? disabledContent : content;
@@ -23,7 +24,7 @@ export function Tooltip({ content, children, position = 'left', disabled = false
   const getPositionStyles = (): StyleProps => {
     const baseStyles: StyleProps = {
       position: 'absolute',
-      background: 'var(--tooltip-bg)',
+      background: customBg || 'var(--tooltip-bg)',
       color: 'var(--tooltip-text)',
       padding: '6px 8px',
       borderRadius: 'var(--border-radius-lg)',

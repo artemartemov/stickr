@@ -1943,7 +1943,7 @@ function Plugin() {
               </div>
               <span style={{ marginLeft: 'var(--spacing-sm)', pointerEvents: 'none' }}>Preview Layout</span>
             </Button>
-            <Tooltip content="Generate Stickersheet" position="left">
+            <Tooltip content="Generate Stickersheet" position="left" customBg="#000">
               <Button style={{ borderRadius: 0, height: '52px', justifyContent: 'center', border: 'none', paddingLeft: 'var(--spacing-xl)', paddingRight: 'var(--spacing-xl)' }} onClick={() => handleGenerate()} disabled={!hasSelection}>
                 <IconAi16 style={{ pointerEvents: 'none' }} />
               </Button>
