@@ -2445,9 +2445,6 @@ function Plugin() {
                     )}
 
                   <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                    <Button fullWidth style={{ borderRadius: 0, height: '52px', justifyContent: 'flex-start', border: 'none' }} onClick={() => setIsLayoutModalOpen(false)}>
-                      Cancel
-                    </Button>
                     <Button fullWidth style={{ borderRadius: 0, height: '52px', justifyContent: 'flex-start', border: 'none' }} onClick={() => {
                       if (!currentRowProp) return
 
@@ -2472,7 +2469,11 @@ function Plugin() {
                       handleGenerate(combinationsToGenerate)
                       setIsLayoutModalOpen(false)
                     }} disabled={!currentRowProp || currentColProps.length === 0}>
-                      Generate Sticker Sheet
+                      <IconAi16 style={{ pointerEvents: 'none' }} />
+                      <span style={{ marginLeft: 'var(--spacing-sm)', pointerEvents: 'none' }}>Generate</span>
+                    </Button>
+                    <Button fullWidth style={{ borderRadius: 0, height: '52px', justifyContent: 'flex-start', border: 'none' }} onClick={() => setIsLayoutModalOpen(false)}>
+                      Cancel
                     </Button>
                   </div>
                 </>
