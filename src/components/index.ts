@@ -6,6 +6,7 @@ export { Checkbox } from './Checkbox';
 export { Modal } from './modals';
 export { Tooltip } from './Tooltip';
 export { Toggle } from './Toggle';
+export { ToggleButton } from './ToggleButton';
 export { Input } from './Input';
 export { TextArea } from './TextArea';
 export { Separator } from './Separator';
