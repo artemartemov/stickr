@@ -770,10 +770,10 @@
     }
   });
 
-  // ../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/dbfdf8f2-8c74-44f3-9d9a-451272e4381a/loading-indicator.module.js
+  // ../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/8311c897-021a-43ea-81f7-6f4515057649/loading-indicator.module.js
   var loading_indicator_module_default;
   var init_loading_indicator_module = __esm({
-    "../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/dbfdf8f2-8c74-44f3-9d9a-451272e4381a/loading-indicator.module.js"() {
+    "../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/8311c897-021a-43ea-81f7-6f4515057649/loading-indicator.module.js"() {
       if (document.getElementById("cf41a494a6") === null) {
         const element = document.createElement("style");
         element.id = "cf41a494a6";
@@ -876,10 +876,10 @@
     }
   });
 
-  // ../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/1a651057-033a-483d-9fc9-b693cf10f6f6/menu.module.js
+  // ../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/7ce7161c-7245-47f5-a15c-f7884e7052a2/menu.module.js
   var menu_module_default;
   var init_menu_module = __esm({
-    "../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/1a651057-033a-483d-9fc9-b693cf10f6f6/menu.module.js"() {
+    "../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/7ce7161c-7245-47f5-a15c-f7884e7052a2/menu.module.js"() {
       if (document.getElementById("208e501b67") === null) {
         const element = document.createElement("style");
         element.id = "208e501b67";
@@ -1102,10 +1102,10 @@
     }
   });
 
-  // ../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/8f799540-8a69-4778-ac93-304fedc93fee/dropdown.module.js
+  // ../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/9988c6cf-ee1c-4188-8c7b-bc2925733e14/dropdown.module.js
   var dropdown_module_default;
   var init_dropdown_module = __esm({
-    "../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/8f799540-8a69-4778-ac93-304fedc93fee/dropdown.module.js"() {
+    "../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/9988c6cf-ee1c-4188-8c7b-bc2925733e14/dropdown.module.js"() {
       if (document.getElementById("a12e202715") === null) {
         const element = document.createElement("style");
         element.id = "a12e202715";
@@ -1546,10 +1546,10 @@
     }
   });
 
-  // ../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/46a3743b-4a1c-4a0a-b021-527f18071fc8/selectable-item.module.js
+  // ../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/4f8f246b-9312-4045-af1b-2e64f21c2729/selectable-item.module.js
   var selectable_item_module_default;
   var init_selectable_item_module = __esm({
-    "../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/46a3743b-4a1c-4a0a-b021-527f18071fc8/selectable-item.module.js"() {
+    "../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/4f8f246b-9312-4045-af1b-2e64f21c2729/selectable-item.module.js"() {
       if (document.getElementById("e9504ce0e1") === null) {
         const element = document.createElement("style");
         element.id = "e9504ce0e1";
@@ -1693,10 +1693,10 @@
     }
   });
 
-  // ../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/2d21ab8c-8f35-4cbb-8158-efd4c5a53357/textbox-multiline.module.js
+  // ../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/19bbcac3-dc45-465a-a22c-149ac8a55f8b/textbox-multiline.module.js
   var textbox_multiline_module_default;
   var init_textbox_multiline_module = __esm({
-    "../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/2d21ab8c-8f35-4cbb-8158-efd4c5a53357/textbox-multiline.module.js"() {
+    "../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/19bbcac3-dc45-465a-a22c-149ac8a55f8b/textbox-multiline.module.js"() {
       if (document.getElementById("97ee6329c7") === null) {
         const element = document.createElement("style");
         element.id = "97ee6329c7";
@@ -1969,10 +1969,10 @@
     }
   });
 
-  // ../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/dd65ddca-5ed4-44df-9290-717c6a115db2/muted.module.js
+  // ../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/35496ebc-85e6-4d80-bab4-a5c2daf57ff9/muted.module.js
   var muted_module_default;
   var init_muted_module = __esm({
-    "../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/dd65ddca-5ed4-44df-9290-717c6a115db2/muted.module.js"() {
+    "../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/35496ebc-85e6-4d80-bab4-a5c2daf57ff9/muted.module.js"() {
       if (document.getElementById("6ce13d64c8") === null) {
         const element = document.createElement("style");
         element.id = "6ce13d64c8";
@@ -2001,10 +2001,10 @@
     }
   });
 
-  // ../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/8b02d08b-1ef7-4ae5-b5a3-4a88cb689fee/vertical-space.module.js
+  // ../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/243cd1d4-2621-464d-bda1-29f8cc55cc43/vertical-space.module.js
   var vertical_space_module_default;
   var init_vertical_space_module = __esm({
-    "../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/8b02d08b-1ef7-4ae5-b5a3-4a88cb689fee/vertical-space.module.js"() {
+    "../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/243cd1d4-2621-464d-bda1-29f8cc55cc43/vertical-space.module.js"() {
       if (document.getElementById("07af95abe2") === null) {
         const element = document.createElement("style");
         element.id = "07af95abe2";
@@ -2045,9 +2045,9 @@
     }
   });
 
-  // ../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/a0e9e78f-0328-40be-9952-92fd2b72d67f/base.js
+  // ../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/435a2c90-8b9e-4bc9-b667-a874ea4ef691/base.js
   var init_base = __esm({
-    "../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/a0e9e78f-0328-40be-9952-92fd2b72d67f/base.js"() {
+    "../../../../private/var/folders/q1/zcllv9c54951yp5j5dk_7s2c0000gp/T/435a2c90-8b9e-4bc9-b667-a874ea4ef691/base.js"() {
       if (document.getElementById("779e0f5e90") === null) {
         const element = document.createElement("style");
         element.id = "779e0f5e90";
@@ -7601,42 +7601,18 @@ ${generateCSSVars(darkMode.progress, "progress")}
               "Column"
             ))
           );
-        })), currentRowProp && currentColProps.length > 0 && /* @__PURE__ */ _("div", { style: {
-          padding: "16px",
-          background: "var(--figma-color-bg-secondary)",
-          borderRadius: "6px",
-          border: "1px solid var(--figma-color-border)"
-        } }, /* @__PURE__ */ _("div", { style: { marginBottom: "var(--spacing-lg)" } }, /* @__PURE__ */ _(Text, { style: { fontSize: "11px", fontWeight: "var(--section-label-fontWeight)", display: "block", textTransform: "var(--section-label-textTransform)", letterSpacing: "var(--section-label-letterSpacing)", marginBottom: "var(--spacing-xxs)" } }, "Layout Preview"), /* @__PURE__ */ _(Muted, { style: { fontSize: "10px" } }, ((_a2 = propValues[currentRowProp]) == null ? void 0 : _a2.length) || 0, " rows \xD7 ", currentColProps.reduce((sum, prop) => {
+        })), currentRowProp && currentColProps.length > 0 && /* @__PURE__ */ _("div", null, /* @__PURE__ */ _("div", { style: { marginBottom: "var(--spacing-lg)" } }, /* @__PURE__ */ _(Text, { style: { fontSize: "11px", fontWeight: "var(--section-label-fontWeight)", display: "block", textTransform: "var(--section-label-textTransform)", letterSpacing: "var(--section-label-letterSpacing)", marginBottom: "var(--spacing-xxs)" } }, "Layout Preview"), /* @__PURE__ */ _(Muted, { style: { fontSize: "10px" } }, ((_a2 = propValues[currentRowProp]) == null ? void 0 : _a2.length) || 0, " rows \xD7 ", currentColProps.reduce((sum, prop) => {
           var _a3;
           return sum * (((_a3 = propValues[prop]) == null ? void 0 : _a3.length) || 1);
         }, 1), " columns = ", (((_b = propValues[currentRowProp]) == null ? void 0 : _b.length) || 0) * currentColProps.reduce((sum, prop) => {
           var _a3;
           return sum * (((_a3 = propValues[prop]) == null ? void 0 : _a3.length) || 1);
         }, 1), " total cells", excludedCells.size > 0 && /* @__PURE__ */ _("span", { style: { color: "var(--figma-color-text-danger)" } }, " ", "(", excludedCells.size, " excluded)"))), /* @__PURE__ */ _("div", { style: { marginBottom: "var(--spacing-sm)" } }, /* @__PURE__ */ _(Muted, { style: { fontSize: "10px" } }, "\u{1F4A1} Click any cell to exclude it from generation")), /* @__PURE__ */ _("div", { style: {
-          position: "relative",
-          borderRadius: "4px",
-          border: "1px solid var(--figma-color-border)",
-          background: "var(--figma-color-bg)",
-          width: "100%",
-          maxWidth: "536px"
-        } }, /* @__PURE__ */ _("div", { style: {
-          position: "absolute",
-          top: 0,
-          right: 0,
-          bottom: "30px",
-          width: "40px",
-          background: "linear-gradient(to left, var(--figma-color-bg-secondary) 0%, transparent 100%)",
-          pointerEvents: "none",
-          zIndex: 3,
-          borderRadius: "0 4px 0 0"
-        } }), /* @__PURE__ */ _("div", { style: {
-          fontSize: "10px",
-          overflowX: "scroll",
-          overflowY: "scroll",
+          overflowX: "auto",
+          overflowY: "auto",
           maxHeight: "350px",
           width: "100%",
-          WebkitOverflowScrolling: "touch",
-          position: "relative"
+          maxWidth: "536px"
         } }, /* @__PURE__ */ _("table", { style: {
           width: "auto",
           borderCollapse: "separate",
@@ -7647,14 +7623,14 @@ ${generateCSSVars(darkMode.progress, "progress")}
           textAlign: "left",
           fontWeight: 600,
           fontSize: "11px",
-          color: "var(--figma-color-text)",
-          background: "var(--figma-color-bg-secondary)",
+          color: "var(--text-primary)",
+          background: "var(--bg-primary)",
           position: "sticky",
           top: 0,
           left: 0,
           zIndex: 3,
-          borderBottom: "2px solid var(--figma-color-border)",
-          borderRight: "2px solid var(--figma-color-border)",
+          borderBottom: "1px solid var(--border-default)",
+          borderRight: "1px solid var(--border-default)",
           minWidth: "100px"
         } }, "\u2193 ", currentRowProp), (() => {
           const getColumnCombinations = (props, index, current) => {
@@ -7680,13 +7656,13 @@ ${generateCSSVars(darkMode.progress, "progress")}
             textAlign: "left",
             fontWeight: 600,
             fontSize: "10px",
-            color: "var(--figma-color-text)",
-            background: "var(--figma-color-bg)",
+            color: "var(--text-primary)",
+            background: "var(--bg-primary)",
             position: "sticky",
             top: 0,
             zIndex: 1,
-            borderBottom: "2px solid var(--figma-color-border)",
-            borderLeft: idx === 0 ? "none" : "1px solid var(--figma-color-border)",
+            borderBottom: "1px solid var(--border-default)",
+            borderLeft: idx === 0 ? "none" : "1px solid var(--border-default)",
             minWidth: "100px",
             maxWidth: "200px",
             whiteSpace: "normal",
@@ -7694,20 +7670,20 @@ ${generateCSSVars(darkMode.progress, "progress")}
           } }, currentColProps.map((prop, propIdx) => /* @__PURE__ */ _("div", { key: propIdx, style: {
             marginBottom: propIdx < currentColProps.length - 1 ? "4px" : 0,
             fontSize: "9px",
-            color: "var(--figma-color-text-secondary)",
+            color: "var(--text-secondary)",
             lineHeight: "1.3"
-          } }, /* @__PURE__ */ _("span", { style: { fontWeight: 600, color: "var(--figma-color-text)" } }, prop, ":"), " ", combo[propIdx]))));
+          } }, /* @__PURE__ */ _("span", { style: { fontWeight: 600, color: "var(--text-primary)" } }, prop, ":"), " ", combo[propIdx]))));
         })())), /* @__PURE__ */ _("tbody", null, (_c = propValues[currentRowProp]) == null ? void 0 : _c.map((rowValue, rowIdx) => /* @__PURE__ */ _("tr", { key: rowIdx }, /* @__PURE__ */ _("td", { style: {
           padding: "8px 12px",
           fontSize: "11px",
           fontWeight: 600,
-          color: "var(--figma-color-text)",
-          background: "var(--figma-color-bg-secondary)",
+          color: "var(--text-primary)",
+          background: "var(--bg-primary)",
           position: "sticky",
           left: 0,
           zIndex: 1,
-          borderRight: "2px solid var(--figma-color-border)",
-          borderBottom: "1px solid var(--figma-color-border)",
+          borderRight: "1px solid var(--border-default)",
+          borderBottom: "1px solid var(--border-default)",
           minWidth: "100px"
         } }, rowValue), (() => {
           const getColumnCombinations = (props, index, current) => {
@@ -7741,14 +7717,14 @@ ${generateCSSVars(darkMode.progress, "progress")}
                 padding: "4px",
                 fontSize: "10px",
                 textAlign: "center",
-                background: "var(--figma-color-bg-secondary)",
-                borderBottom: "1px solid var(--figma-color-border)",
-                borderLeft: colIdx === 0 ? "none" : "1px solid var(--figma-color-border)",
+                background: "var(--bg-primary)",
+                borderBottom: "1px solid var(--border-default)",
+                borderLeft: colIdx === 0 ? "none" : "1px solid var(--border-default)",
                 opacity: 0.3
               } }, /* @__PURE__ */ _("div", { style: {
                 padding: "8px 12px",
                 fontSize: "10px",
-                color: "var(--figma-color-text-disabled)"
+                color: "var(--text-secondary)"
               } }, "\u2014"));
             }
             const cellKey = getCellKey(rowValue, combo);
@@ -7761,9 +7737,9 @@ ${generateCSSVars(darkMode.progress, "progress")}
                   padding: "4px",
                   fontSize: "10px",
                   textAlign: "center",
-                  background: "var(--figma-color-bg)",
-                  borderBottom: "1px solid var(--figma-color-border)",
-                  borderLeft: colIdx === 0 ? "none" : "1px solid var(--figma-color-border)",
+                  background: "var(--bg-primary)",
+                  borderBottom: "1px solid var(--border-default)",
+                  borderLeft: colIdx === 0 ? "none" : "1px solid var(--border-default)",
                   cursor: "pointer"
                 },
                 onClick: () => toggleCellExclusion(rowValue, combo)
@@ -7776,11 +7752,11 @@ ${generateCSSVars(darkMode.progress, "progress")}
                     alignItems: "center",
                     justifyContent: "center",
                     padding: "8px 12px",
-                    background: isExcluded ? "var(--figma-color-bg-secondary)" : "var(--figma-color-bg-brand-tertiary)",
+                    background: isExcluded ? "#f5f5f5" : "#e3f2fd",
                     borderRadius: "3px",
                     fontSize: "10px",
                     fontWeight: 500,
-                    color: isExcluded ? "var(--figma-color-text-disabled)" : "var(--figma-color-text-brand)",
+                    color: isExcluded ? "var(--text-secondary)" : "#1976d2",
                     opacity: isExcluded ? 0.5 : 1,
                     transition: "all 0.15s ease",
                     minWidth: "40px",
@@ -7800,7 +7776,7 @@ ${generateCSSVars(darkMode.progress, "progress")}
         })()))))), /* @__PURE__ */ _("div", { style: {
           marginTop: "var(--spacing-sm)",
           textAlign: "center"
-        } }, /* @__PURE__ */ _(Muted, { style: { fontSize: "9px" } }, "\u2190 Scroll to see all columns \u2192")))))
+        } }, /* @__PURE__ */ _(Muted, { style: { fontSize: "9px" } }, "\u2190 Scroll to see all columns \u2192"))))
       );
     })());
   }

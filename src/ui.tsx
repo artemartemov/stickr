@@ -2174,14 +2174,9 @@ function Plugin() {
                     })}
                   </div>
 
-                    {/* Visual Matrix Preview - More Context Rich */}
+                    {/* Visual Matrix Preview */}
                     {currentRowProp && currentColProps.length > 0 && (
-                      <div style={{
-                        padding: '16px',
-                        background: 'var(--figma-color-bg-secondary)',
-                        borderRadius: '6px',
-                        border: '1px solid var(--figma-color-border)'
-                      }}>
+                      <div>
                         <div style={{ marginBottom: 'var(--spacing-lg)' }}>
                           <Text style={{ fontSize: '11px', fontWeight: 'var(--section-label-fontWeight)', display: 'block', textTransform: 'var(--section-label-textTransform)', letterSpacing: 'var(--section-label-letterSpacing)', marginBottom: 'var(--spacing-xxs)' }}>
                             Layout Preview
@@ -2208,38 +2203,14 @@ function Plugin() {
                           </Muted>
                         </div>
 
-                        {/* Scrollable container with shadow hints */}
+                        {/* Table container */}
                         <div style={{
-                          position: 'relative',
-                          borderRadius: '4px',
-                          border: '1px solid var(--figma-color-border)',
-                          background: 'var(--figma-color-bg)',
+                          overflowX: 'auto',
+                          overflowY: 'auto',
+                          maxHeight: '350px',
                           width: '100%',
                           maxWidth: '536px'
                         }}>
-                          {/* Scroll hint overlay - right side */}
-                          <div style={{
-                            position: 'absolute',
-                            top: 0,
-                            right: 0,
-                            bottom: '30px',
-                            width: '40px',
-                            background: 'linear-gradient(to left, var(--figma-color-bg-secondary) 0%, transparent 100%)',
-                            pointerEvents: 'none',
-                            zIndex: 3,
-                            borderRadius: '0 4px 0 0'
-                          }} />
-
-                          {/* Grid visualization with actual values */}
-                          <div style={{
-                            fontSize: '10px',
-                            overflowX: 'scroll',
-                            overflowY: 'scroll',
-                            maxHeight: '350px',
-                            width: '100%',
-                            WebkitOverflowScrolling: 'touch',
-                            position: 'relative'
-                          }}>
                           <table style={{
                             width: 'auto',
                             borderCollapse: 'separate',
@@ -2253,14 +2224,14 @@ function Plugin() {
                                   textAlign: 'left',
                                   fontWeight: 600,
                                   fontSize: '11px',
-                                  color: 'var(--figma-color-text)',
-                                  background: 'var(--figma-color-bg-secondary)',
+                                  color: 'var(--text-primary)',
+                                  background: 'var(--bg-primary)',
                                   position: 'sticky',
                                   top: 0,
                                   left: 0,
                                   zIndex: 3,
-                                  borderBottom: '2px solid var(--figma-color-border)',
-                                  borderRight: '2px solid var(--figma-color-border)',
+                                  borderBottom: '1px solid var(--border-default)',
+                                  borderRight: '1px solid var(--border-default)',
                                   minWidth: '100px'
                                 }}>
                                   ↓ {currentRowProp}
@@ -2295,13 +2266,13 @@ function Plugin() {
                                       textAlign: 'left',
                                       fontWeight: 600,
                                       fontSize: '10px',
-                                      color: 'var(--figma-color-text)',
-                                      background: 'var(--figma-color-bg)',
+                                      color: 'var(--text-primary)',
+                                      background: 'var(--bg-primary)',
                                       position: 'sticky',
                                       top: 0,
                                       zIndex: 1,
-                                      borderBottom: '2px solid var(--figma-color-border)',
-                                      borderLeft: idx === 0 ? 'none' : '1px solid var(--figma-color-border)',
+                                      borderBottom: '1px solid var(--border-default)',
+                                      borderLeft: idx === 0 ? 'none' : '1px solid var(--border-default)',
                                       minWidth: '100px',
                                       maxWidth: '200px',
                                       whiteSpace: 'normal',
@@ -2311,10 +2282,10 @@ function Plugin() {
                                         <div key={propIdx} style={{
                                           marginBottom: propIdx < currentColProps.length - 1 ? '4px' : 0,
                                           fontSize: '9px',
-                                          color: 'var(--figma-color-text-secondary)',
+                                          color: 'var(--text-secondary)',
                                           lineHeight: '1.3'
                                         }}>
-                                          <span style={{ fontWeight: 600, color: 'var(--figma-color-text)' }}>{prop}:</span> {combo[propIdx]}
+                                          <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{prop}:</span> {combo[propIdx]}
                                         </div>
                                       ))}
                                     </th>
@@ -2329,13 +2300,13 @@ function Plugin() {
                                     padding: '8px 12px',
                                     fontSize: '11px',
                                     fontWeight: 600,
-                                    color: 'var(--figma-color-text)',
-                                    background: 'var(--figma-color-bg-secondary)',
+                                    color: 'var(--text-primary)',
+                                    background: 'var(--bg-primary)',
                                     position: 'sticky',
                                     left: 0,
                                     zIndex: 1,
-                                    borderRight: '2px solid var(--figma-color-border)',
-                                    borderBottom: '1px solid var(--figma-color-border)',
+                                    borderRight: '1px solid var(--border-default)',
+                                    borderBottom: '1px solid var(--border-default)',
                                     minWidth: '100px'
                                   }}>
                                     {rowValue}
@@ -2381,15 +2352,15 @@ function Plugin() {
                                             padding: '4px',
                                             fontSize: '10px',
                                             textAlign: 'center',
-                                            background: 'var(--figma-color-bg-secondary)',
-                                            borderBottom: '1px solid var(--figma-color-border)',
-                                            borderLeft: colIdx === 0 ? 'none' : '1px solid var(--figma-color-border)',
+                                            background: 'var(--bg-primary)',
+                                            borderBottom: '1px solid var(--border-default)',
+                                            borderLeft: colIdx === 0 ? 'none' : '1px solid var(--border-default)',
                                             opacity: 0.3
                                           }}>
                                             <div style={{
                                               padding: '8px 12px',
                                               fontSize: '10px',
-                                              color: 'var(--figma-color-text-disabled)'
+                                              color: 'var(--text-secondary)'
                                             }}>
                                               —
                                             </div>
@@ -2405,9 +2376,9 @@ function Plugin() {
                                           padding: '4px',
                                           fontSize: '10px',
                                           textAlign: 'center',
-                                          background: 'var(--figma-color-bg)',
-                                          borderBottom: '1px solid var(--figma-color-border)',
-                                          borderLeft: colIdx === 0 ? 'none' : '1px solid var(--figma-color-border)',
+                                          background: 'var(--bg-primary)',
+                                          borderBottom: '1px solid var(--border-default)',
+                                          borderLeft: colIdx === 0 ? 'none' : '1px solid var(--border-default)',
                                           cursor: 'pointer'
                                         }}
                                         onClick={() => toggleCellExclusion(rowValue, combo)}
@@ -2417,15 +2388,11 @@ function Plugin() {
                                             alignItems: 'center',
                                             justifyContent: 'center',
                                             padding: '8px 12px',
-                                            background: isExcluded
-                                              ? 'var(--figma-color-bg-secondary)'
-                                              : 'var(--figma-color-bg-brand-tertiary)',
+                                            background: isExcluded ? '#f5f5f5' : '#e3f2fd',
                                             borderRadius: '3px',
                                             fontSize: '10px',
                                             fontWeight: 500,
-                                            color: isExcluded
-                                              ? 'var(--figma-color-text-disabled)'
-                                              : 'var(--figma-color-text-brand)',
+                                            color: isExcluded ? 'var(--text-secondary)' : '#1976d2',
                                             opacity: isExcluded ? 0.5 : 1,
                                             transition: 'all 0.15s ease',
                                             minWidth: '40px',
@@ -2448,18 +2415,16 @@ function Plugin() {
                               ))}
                             </tbody>
                           </table>
-                          </div>
-                          {/* End scroll container */}
+                        </div>
 
-                          {/* Scroll hint text */}
-                          <div style={{
-                            marginTop: 'var(--spacing-sm)',
-                            textAlign: 'center'
-                          }}>
-                            <Muted style={{ fontSize: '9px' }}>
-                              ← Scroll to see all columns →
-                            </Muted>
-                          </div>
+                        {/* Scroll hint text */}
+                        <div style={{
+                          marginTop: 'var(--spacing-sm)',
+                          textAlign: 'center'
+                        }}>
+                          <Muted style={{ fontSize: '9px' }}>
+                            ← Scroll to see all columns →
+                          </Muted>
                         </div>
                       </div>
                     )}
