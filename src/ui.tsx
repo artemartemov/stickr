@@ -19,7 +19,7 @@ import {
   IconComponent16
 } from '@create-figma-plugin/ui'
 import { h, Fragment } from 'preact'
-import { useState, useEffect } from 'preact/hooks'
+import { useState, useEffect, useRef } from 'preact/hooks'
 import * as yaml from 'js-yaml'
 import type { AnovaSpec } from './types/anova'
 import { filterValidVariants } from './types/anova'
@@ -2047,6 +2047,30 @@ function Plugin() {
 
         // State for excluded cells
         const [excludedCells, setExcludedCells] = useState<Set<string>>(new Set())
+        
+        // State for table scroll (to show/hide gradient)
+        const [showScrollGradient, setShowScrollGradient] = useState(false)
+        const tableContainerRef = useRef<HTMLDivElement>(null)
+        
+        // Check if table needs scroll gradient
+        const checkScrollGradient = () => {
+          const container = tableContainerRef.current
+          if (!container) return
+          
+          const hasHorizontalScroll = container.scrollWidth > container.clientWidth
+          const isAtEnd = container.scrollLeft + container.clientWidth >= container.scrollWidth - 1
+          
+          setShowScrollGradient(hasHorizontalScroll && !isAtEnd)
+        }
+        
+        // Check gradient on mount and when table data changes
+        useEffect(() => {
+          // Add small delay to ensure DOM is fully rendered
+          const timeout = setTimeout(() => {
+            checkScrollGradient()
+          }, 100)
+          return () => clearTimeout(timeout)
+        }, [currentRowProp, currentColProps, propValues])
 
         // Create a unique key for a cell based on row + column combination
         const getCellKey = (rowValue: string, colCombo: any[]) => {
@@ -2177,40 +2201,31 @@ function Plugin() {
                     {/* Visual Matrix Preview */}
                     {currentRowProp && currentColProps.length > 0 && (
                       <div>
-                        <div style={{ marginBottom: 'var(--spacing-lg)' }}>
-                          <Text style={{ fontSize: '11px', fontWeight: 'var(--section-label-fontWeight)', display: 'block', textTransform: 'var(--section-label-textTransform)', letterSpacing: 'var(--section-label-letterSpacing)', marginBottom: 'var(--spacing-xxs)' }}>
+                        <div style={{ marginBottom: 'var(--spacing-lg)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <Text style={{ fontSize: '11px', fontWeight: 'var(--section-label-fontWeight)', textTransform: 'var(--section-label-textTransform)', letterSpacing: 'var(--section-label-letterSpacing)' }}>
                             Layout Preview
                           </Text>
-                          <Muted style={{ fontSize: '10px' }}>
-                            {propValues[currentRowProp]?.length || 0} rows × {
-                              currentColProps.reduce((sum, prop) =>
-                                sum * (propValues[prop]?.length || 1), 1)
-                            } columns = {(propValues[currentRowProp]?.length || 0) *
-                            currentColProps.reduce((sum, prop) =>
-                              sum * (propValues[prop]?.length || 1), 1)} total cells
-                            {excludedCells.size > 0 && (
+                          {excludedCells.size > 0 && (
+                            <Muted style={{ fontSize: '10px' }}>
                               <span style={{ color: 'var(--figma-color-text-danger)' }}>
-                                {' '}({excludedCells.size} excluded)
+                                {excludedCells.size} excluded
                               </span>
-                            )}
-                          </Muted>
-                        </div>
-
-                        {/* Exclusion hint */}
-                        <div style={{ marginBottom: 'var(--spacing-sm)' }}>
-                          <Muted style={{ fontSize: '10px' }}>
-                            💡 Click any cell to exclude it from generation
-                          </Muted>
+                            </Muted>
+                          )}
                         </div>
 
                         {/* Table container */}
-                        <div style={{
-                          overflowX: 'auto',
-                          overflowY: 'auto',
-                          maxHeight: '350px',
-                          width: '100%',
-                          maxWidth: '536px'
-                        }}>
+                        <div style={{ position: 'relative' }}>
+                          <div 
+                            ref={tableContainerRef}
+                            onScroll={checkScrollGradient}
+                            style={{
+                              overflowX: 'auto',
+                              overflowY: 'auto',
+                              maxHeight: '350px',
+                              width: '100%',
+                              maxWidth: '536px'
+                            }}>
                           <table style={{
                             width: 'auto',
                             borderCollapse: 'separate',
@@ -2223,7 +2238,7 @@ function Plugin() {
                                   padding: '8px 12px',
                                   textAlign: 'left',
                                   fontWeight: 600,
-                                  fontSize: '11px',
+                                  fontSize: '10px',
                                   color: 'var(--text-primary)',
                                   background: 'var(--bg-primary)',
                                   position: 'sticky',
@@ -2278,16 +2293,29 @@ function Plugin() {
                                       whiteSpace: 'normal',
                                       verticalAlign: 'top'
                                     }}>
-                                      {currentColProps.map((prop, propIdx) => (
-                                        <div key={propIdx} style={{
-                                          marginBottom: propIdx < currentColProps.length - 1 ? '4px' : 0,
-                                          fontSize: '9px',
-                                          color: 'var(--text-secondary)',
-                                          lineHeight: '1.3'
-                                        }}>
-                                          <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{prop}:</span> {combo[propIdx]}
-                                        </div>
-                                      ))}
+                                      {currentColProps.map((prop, propIdx) => {
+                                        const value = combo[propIdx];
+                                        return (
+                                          <div key={propIdx} style={{
+                                            marginBottom: propIdx < currentColProps.length - 1 ? 'var(--spacing-xxxs)' : 0,
+                                            fontSize: '9px',
+                                            color: 'var(--text-secondary)',
+                                            lineHeight: '1.3',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 'var(--spacing-xxxs)'
+                                          }}>
+                                            <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{prop}:</span>
+                                            {String(value).toLowerCase() === 'true' ? (
+                                              <span style={{ fontSize: '12px' }}>✓</span>
+                                            ) : String(value).toLowerCase() === 'false' ? (
+                                              <span style={{ fontSize: '12px' }}>✗</span>
+                                            ) : (
+                                              value
+                                            )}
+                                          </div>
+                                        );
+                                      })}
                                     </th>
                                   ))
                                 })()}
@@ -2298,7 +2326,7 @@ function Plugin() {
                                 <tr key={rowIdx}>
                                   <td style={{
                                     padding: '8px 12px',
-                                    fontSize: '11px',
+                                    fontSize: '10px',
                                     fontWeight: 600,
                                     color: 'var(--text-primary)',
                                     background: 'var(--bg-primary)',
@@ -2373,39 +2401,22 @@ function Plugin() {
 
                                       return (
                                         <td key={colIdx} style={{
-                                          padding: '4px',
+                                          padding: '8px 12px',
                                           fontSize: '10px',
                                           textAlign: 'center',
                                           background: 'var(--bg-primary)',
                                           borderBottom: '1px solid var(--border-default)',
-                                          borderLeft: colIdx === 0 ? 'none' : '1px solid var(--border-default)',
-                                          cursor: 'pointer'
-                                        }}
-                                        onClick={() => toggleCellExclusion(rowValue, combo)}
-                                        >
+                                          borderLeft: colIdx === 0 ? 'none' : '1px solid var(--border-default)'
+                                        }}>
                                           <div style={{
-                                            display: 'inline-flex',
+                                            display: 'flex',
                                             alignItems: 'center',
-                                            justifyContent: 'center',
-                                            padding: '8px 12px',
-                                            background: isExcluded ? '#f5f5f5' : '#e3f2fd',
-                                            borderRadius: '3px',
-                                            fontSize: '10px',
-                                            fontWeight: 500,
-                                            color: isExcluded ? 'var(--text-secondary)' : '#1976d2',
-                                            opacity: isExcluded ? 0.5 : 1,
-                                            transition: 'all 0.15s ease',
-                                            minWidth: '40px',
-                                            textDecoration: isExcluded ? 'line-through' : 'none'
-                                          }}
-                                          onMouseEnter={(e) => {
-                                            e.currentTarget.style.transform = 'scale(1.05)'
-                                          }}
-                                          onMouseLeave={(e) => {
-                                            e.currentTarget.style.transform = 'scale(1)'
-                                          }}
-                                          >
-                                            {isExcluded ? '✗' : '✓'}
+                                            justifyContent: 'center'
+                                          }}>
+                                            <Checkbox
+                                              value={!isExcluded}
+                                              onChange={() => toggleCellExclusion(rowValue, combo)}
+                                            />
                                           </div>
                                         </td>
                                       )
@@ -2415,17 +2426,24 @@ function Plugin() {
                               ))}
                             </tbody>
                           </table>
+                          </div>
+                          
+                          {/* Scroll gradient indicator */}
+                          {showScrollGradient && (
+                            <div style={{
+                              position: 'absolute',
+                              top: 0,
+                              right: 0,
+                              bottom: 0,
+                              width: '60px',
+                              background: 'linear-gradient(to left, var(--bg-primary) 0%, var(--bg-primary) 10%, transparent 100%)',
+                              pointerEvents: 'none',
+                              zIndex: 2
+                            }} />
+                          )}
                         </div>
 
-                        {/* Scroll hint text */}
-                        <div style={{
-                          marginTop: 'var(--spacing-sm)',
-                          textAlign: 'center'
-                        }}>
-                          <Muted style={{ fontSize: '9px' }}>
-                            ← Scroll to see all columns →
-                          </Muted>
-                        </div>
+                        
                       </div>
                     )}
 
