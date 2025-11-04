@@ -1606,18 +1606,11 @@ function Plugin() {
                                         style={{
                                           display: 'flex',
                                           alignItems: 'center',
-                                          fontSize: '11px'
+                                          fontSize: 'var(--font-size-sm)',
+                                          color: 'var(--figma-color-text)'
                                         }}
                                       >
-                                        <span style={{
-                                          color: 'var(--figma-color-text)',
-                                          fontWeight: 500,
-                                          padding: 'var(--spacing-xxxs) var(--spacing-sm)',
-                                          borderRadius: '3px',
-                                          background: 'var(--figma-color-bg-brand-tertiary)'
-                                        }}>
-                                          {String(value)}
-                                        </span>
+                                        {String(value)}
                                       </div>
                                     ))}
                                   </div>
@@ -1636,32 +1629,11 @@ function Plugin() {
                                           style={{
                                             display: 'flex',
                                             alignItems: 'center',
-                                            gap: 'var(--spacing-xs)',
-                                            fontSize: '11px'
+                                            fontSize: 'var(--font-size-sm)',
+                                            color: boolValue ? 'var(--figma-color-text)' : 'var(--figma-color-text-tertiary)'
                                           }}
                                         >
-                                          <span style={{
-                                            color: 'var(--figma-color-text-secondary)'
-                                          }}>
-                                            {key}
-                                          </span>
-                                          <span style={{
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            width: '16px',
-                                            height: '16px',
-                                            borderRadius: '3px',
-                                            background: boolValue
-                                              ? 'var(--figma-color-bg-success)'
-                                              : 'var(--figma-color-bg-secondary)',
-                                            fontSize: '10px',
-                                            color: boolValue ? 'var(--figma-color-text-onbrand)' : 'var(--figma-color-text-tertiary)',
-                                            fontWeight: 600,
-                                            lineHeight: 1
-                                          }}>
-                                            {boolValue ? '✓' : '✗'}
-                                          </span>
+                                          {key}: {boolValue ? '✓' : '✗'}
                                         </div>
                                       )
                                     })}
@@ -1868,18 +1840,11 @@ function Plugin() {
                                           style={{
                                             display: 'flex',
                                             alignItems: 'center',
-                                            fontSize: '11px'
+                                            fontSize: 'var(--font-size-sm)',
+                                            color: 'var(--figma-color-text)'
                                           }}
                                         >
-                                          <span style={{
-                                            color: 'var(--figma-color-text)',
-                                            fontWeight: 500,
-                                            padding: 'var(--spacing-xxxs) var(--spacing-sm)',
-                                            borderRadius: '3px',
-                                            background: 'var(--figma-color-bg-brand-tertiary)'
-                                          }}>
-                                            {String(value)}
-                                          </span>
+                                          {String(value)}
                                         </div>
                                       ))}
                                     </div>
@@ -1898,32 +1863,11 @@ function Plugin() {
                                             style={{
                                               display: 'flex',
                                               alignItems: 'center',
-                                              gap: 'var(--spacing-xs)',
-                                              fontSize: '11px'
+                                              fontSize: 'var(--font-size-sm)',
+                                              color: boolValue ? 'var(--figma-color-text)' : 'var(--figma-color-text-tertiary)'
                                             }}
                                           >
-                                            <span style={{
-                                              color: 'var(--figma-color-text-secondary)'
-                                            }}>
-                                              {key}
-                                            </span>
-                                            <span style={{
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            width: '16px',
-                                            height: '16px',
-                                            borderRadius: '3px',
-                                            background: boolValue
-                                              ? 'var(--figma-color-bg-success)'
-                                              : 'var(--figma-color-bg-secondary)',
-                                            fontSize: '10px',
-                                            color: boolValue ? 'var(--figma-color-text-onbrand)' : 'var(--figma-color-text-tertiary)',
-                                            fontWeight: 600,
-                                            lineHeight: 1
-                                          }}>
-                                            {boolValue ? '✓' : '✗'}
-                                          </span>
+                                            {key}: {boolValue ? '✓' : '✗'}
                                           </div>
                                         )
                                       })}
