@@ -26,9 +26,14 @@ export const ToggleButton = ({
   const [isHovered, setIsHovered] = useState(false);
 
   const getBackgroundColor = () => {
-    if (selected) return 'var(--button-tertiary-bgActive)';
     if (isHovered && !disabled) return 'var(--button-tertiary-bgHover)';
     return 'var(--button-tertiary-bg)';
+  };
+
+  const getTextColor = () => {
+    if (disabled) return 'var(--text-secondary)';
+    if (selected) return 'var(--text-primary)';
+    return 'var(--text-secondary)';
   };
 
   return (
@@ -40,7 +45,7 @@ export const ToggleButton = ({
       style={{
         minWidth: '50px',
         height: '24px',
-        padding: '0 var(--spacing-sm)',
+        padding: '0 var(--spacing-xxs)',
         fontSize: '10px',
         fontFamily: "'IBM Plex Mono', monospace",
         textTransform: 'uppercase',
@@ -48,10 +53,10 @@ export const ToggleButton = ({
         borderRadius: '3px',
         border: 'none',
         background: getBackgroundColor(),
-        color: disabled ? 'var(--text-secondary)' : 'var(--text-primary)',
+        color: getTextColor(),
         cursor: disabled ? 'not-allowed' : 'pointer',
         opacity: disabled ? 0.5 : 1,
-        transition: 'background-color 0.15s ease',
+        transition: 'background-color 0.15s ease, color 0.15s ease',
       }}
     >
       {children}
