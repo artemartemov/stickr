@@ -262,4 +262,24 @@ ${generateCSSVars(darkMode.progress, 'progress')}
   .dropdown-wrapper:hover .select {
     border-color: var(--figma-color-border) !important;
   }
+
+  /* Clear data icon cursor */
+  .clear-data-icon {
+    cursor: pointer !important;
+  }
+  
+  .clear-data-icon * {
+    cursor: pointer !important;
+  }
+  
+  /* Unified toggle button group hover */
+  .toggle-button-group:hover .clear-data-icon,
+  .toggle-button-group:hover button {
+    background: var(--button-tertiary-bgHover) !important;
+  }
+  
+  /* X icon hover state */
+  .clear-data-icon:hover svg {
+    opacity: 0.6;
+  }
 `;

@@ -64,7 +64,7 @@ function Plugin() {
   const [componentDataInput, setComponentDataInput] = useState<string>('')
   const [componentDataSpec, setComponentDataSpec] = useState<AnovaSpec | null>(null)
   const [componentDataError, setComponentDataError] = useState<string>('')
-  const [isComponentDataModalOpen, setIsComponentDataModalOpen] = useState(false)
+  const [isComponentDataCollapsed, setIsComponentDataCollapsed] = useState(true)
   const [selectedGroupingProperty, setSelectedGroupingProperty] = useState<string | null>(null)
 
   // Layout customization state
@@ -1133,26 +1133,71 @@ function Plugin() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
                   {/* Add/Remove Component Data Button */}
                   {dataSource === 'figma-direct' && componentSets.length > 0 && (
-                    <ToggleButton
-                      selected={!!componentDataSpec}
-                      onClick={() => {
-                        if (componentDataSpec) {
-                          // Remove component data
-                          setComponentDataInput('')
-                          setComponentDataSpec(null)
-                          setComponentDataError('')
-                        } else {
-                          // Add component data
-                          setIsComponentDataModalOpen(true)
-                        }
-                      }}
+                    <div 
+                      className="toggle-button-group" 
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '0' }}
                     >
-                      {componentDataSpec ? '- Data' : '+ Data'}
-                    </ToggleButton>
+                      {componentDataSpec && (
+                        <Tooltip content="Clear data" position="left">
+                          <button
+                            type="button"
+                            className="clear-data-icon"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setComponentDataInput('')
+                              setComponentDataSpec(null)
+                              setComponentDataError('')
+                            }}
+                            style={{
+                              height: '24px',
+                              width: '20px',
+                              padding: '0',
+                              fontSize: '10px',
+                              fontFamily: "'IBM Plex Mono', monospace",
+                              textTransform: 'uppercase',
+                              letterSpacing: '1px',
+                              borderRadius: '3px 0 0 3px',
+                              border: 'none',
+                              background: 'var(--button-tertiary-bg)',
+                              color: 'var(--text-primary)',
+                              transition: 'background-color 0.15s ease',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              marginRight: '-2px',
+                            }}
+                          >
+                            <IconClose16 style={{ width: '10px', height: '10px', transition: 'opacity 0.15s ease' }} />
+                          </button>
+                        </Tooltip>
+                      )}
+                      <ToggleButton
+                        selected={!isComponentDataCollapsed || !!componentDataSpec}
+                        onClick={() => {
+                          setIsComponentDataCollapsed(!isComponentDataCollapsed)
+                          if (isComponentDataCollapsed) {
+                            // If opening Data, close Filters
+                            setIsFiltersCollapsed(true)
+                          }
+                        }}
+                        style={{ 
+                          minWidth: 'auto',
+                          borderRadius: componentDataSpec ? '0 3px 3px 0' : '3px'
+                        }}
+                      >
+                        Data
+                      </ToggleButton>
+                    </div>
                   )}
                   <ToggleButton
                     selected={!isFiltersCollapsed}
-                    onClick={() => setIsFiltersCollapsed(!isFiltersCollapsed)}
+                    onClick={() => {
+                      setIsFiltersCollapsed(!isFiltersCollapsed)
+                      if (isFiltersCollapsed) {
+                        // If opening Filters, close Data
+                        setIsComponentDataCollapsed(true)
+                      }
+                    }}
                   >
                     Filter
                   </ToggleButton>
@@ -1169,6 +1214,53 @@ function Plugin() {
                   </Toggle>
                 </div>
               </div>
+
+              {/* Component Data Section */}
+              {!isComponentDataCollapsed && dataSource === 'figma-direct' && (
+                <div style={{ paddingTop: 'var(--spacing-sm)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
+                  <TextboxMultiline
+                    value={componentDataInput}
+                    onValueInput={setComponentDataInput}
+                    placeholder="Paste JSON or YAML component data"
+                    rows={3}
+                    style={{ fontSize: '11px', fontFamily: 'var(--font-family-code)' }}
+                  />
+                  <div style={{ display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'center', justifyContent: 'flex-end' }}>
+                    {componentDataError && (
+                      <Muted style={{ color: 'var(--figma-color-text-danger)', fontSize: '11px', marginRight: 'auto' }}>
+                        {componentDataError}
+                      </Muted>
+                    )}
+                    {componentDataSpec && (
+                      <Muted style={{ color: 'var(--figma-color-text-success)', fontSize: '11px', marginRight: 'auto' }}>
+                        ✓ {componentDataSpec.title}
+                      </Muted>
+                    )}
+                    {componentDataSpec && (
+                      <Button
+                        onClick={() => {
+                          setComponentDataInput('')
+                          setComponentDataSpec(null)
+                          setComponentDataError('')
+                        }}
+                        secondary
+                        style={{ height: '28px', fontSize: '11px', borderRadius: '3px' }}
+                      >
+                        Clear
+                      </Button>
+                    )}
+                    <Button
+                      onClick={() => {
+                        handleComponentDataParse()
+                      }}
+                      disabled={!componentDataInput.trim()}
+                      style={{ height: '28px', fontSize: '11px', borderRadius: '3px' }}
+                    >
+                      Apply
+                    </Button>
+                  </div>
+                </div>
+              )}
 
               {/* Second Row: Filtering and Sorting Controls */}
               {!isFiltersCollapsed && previewCombinations.length > 0 && (
@@ -1919,53 +2011,6 @@ function Plugin() {
         )}
       </div>
       </div>
-
-      {/* Component Data Modal */}
-      {isComponentDataModalOpen && (
-        <Modal
-          isOpen={isComponentDataModalOpen}
-          title="Add Component Data"
-          onClose={() => setIsComponentDataModalOpen(false)}
-          footer={
-            <div style={{ display: 'flex', width: '100%' }}>
-              <Button fullWidth style={{ borderRadius: 0, height: '52px', justifyContent: 'flex-start', border: 'none' }} disabled={!componentDataInput.trim()} onClick={() => {
-                handleComponentDataParse()
-                setIsComponentDataModalOpen(false)
-              }}>
-                <IconPlus16 style={{ pointerEvents: 'none', width: '12px', height: '12px' }} />
-                <span style={{ marginLeft: 'var(--spacing-sm)', pointerEvents: 'none' }}>Apply Component Data</span>
-              </Button>
-              <Tooltip content="Cancel" position="left" variant="dark">
-                <Button style={{ borderRadius: 0, height: '52px', justifyContent: 'center', border: 'none', paddingLeft: 'var(--spacing-xl)', paddingRight: 'var(--spacing-xl)', width: '52px', flexShrink: 0 }} onClick={() => setIsComponentDataModalOpen(false)}>
-                  <IconClose16 style={{ pointerEvents: 'none' }} />
-                </Button>
-              </Tooltip>
-            </div>
-          }
-        >
-          <div style={{ padding: 'var(--spacing-lg)' }}>
-            <div style={{ marginBottom: 'var(--spacing-lg)' }}>
-              <Muted>Paste component data (YAML) to filter variants to only valid combinations</Muted>
-            </div>
-            <TextboxMultiline
-              value={componentDataInput}
-              onValueInput={setComponentDataInput}
-              placeholder="Paste Anova YAML data here..."
-              rows={12}
-            />
-            {componentDataError && (
-              <div style={{ marginTop: 'var(--spacing-sm)', color: 'var(--figma-color-text-danger)', fontSize: '11px' }}>
-                {componentDataError}
-              </div>
-            )}
-            {componentDataSpec && (
-              <div style={{ marginTop: 'var(--spacing-sm)', color: 'var(--figma-color-text-success)', fontSize: '11px' }}>
-                ✓ Loaded: {componentDataSpec.title}
-              </div>
-            )}
-          </div>
-        </Modal>
-      )}
 
       {/* Layout Preview Modal */}
       {isLayoutModalOpen && (() => {

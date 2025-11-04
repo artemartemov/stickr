@@ -3,18 +3,20 @@
  * Used for Row/Column selection toggles
  */
 
-import { h } from 'preact';
+import { h, ComponentChildren } from 'preact';
 import { useState } from 'preact/hooks';
 
 export interface ToggleButtonProps {
   /** Button label */
-  children: string;
+  children: ComponentChildren;
   /** Whether button is in selected/active state */
   selected?: boolean;
   /** Whether button is disabled */
   disabled?: boolean;
   /** Click handler */
   onClick?: () => void;
+  /** Custom styles */
+  style?: h.JSX.CSSProperties;
 }
 
 export const ToggleButton = ({
@@ -22,6 +24,7 @@ export const ToggleButton = ({
   selected = false,
   disabled = false,
   onClick,
+  style,
 }: ToggleButtonProps) => {
   const [isHovered, setIsHovered] = useState(false);
 
@@ -57,6 +60,7 @@ export const ToggleButton = ({
         cursor: disabled ? 'not-allowed' : 'pointer',
         opacity: disabled ? 0.5 : 1,
         transition: 'background-color 0.15s ease, color 0.15s ease',
+        ...style,
       }}
     >
       {children}
