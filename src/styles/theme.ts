@@ -250,4 +250,16 @@ ${generateCSSVars(darkMode.progress, 'progress')}
       stroke-dasharray: var(--stroke-length) 1000;
     }
   }
+
+  /* Dropdown hover border styling */
+  .dropdown-wrapper select,
+  .dropdown-wrapper .select {
+    border-color: transparent !important;
+    transition: border-color 0.15s ease;
+  }
+
+  .dropdown-wrapper:hover select,
+  .dropdown-wrapper:hover .select {
+    border-color: var(--figma-color-border) !important;
+  }
 `;
