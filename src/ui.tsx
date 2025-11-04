@@ -314,9 +314,9 @@ function Plugin() {
       return true
     })
 
-    // Determine if we should select or deselect based on the current combo's state
-    const currentKey = getCombinationKey(combo)
-    const shouldSelect = !selectedCombinations[currentKey]
+    // Determine if we should select or deselect based on whether ALL are selected
+    const allSelected = matchingCombos.every(c => selectedCombinations[getCombinationKey(c)])
+    const shouldSelect = !allSelected
 
     const newState = { ...selectedCombinations }
     matchingCombos.forEach(matchingCombo => {
@@ -1674,40 +1674,54 @@ function Plugin() {
                           
                         </div>
                         
-                        {/* Select Across Groups Button - Centered absolutely, only show on hover */}
-                        {!isInvalid && isHovered && groupingProperty && Object.keys(groupedCombinations).length > 1 && (
-                          <div style={{
-                            position: 'absolute',
-                            top: '50%',
-                            left: '50%',
-                            transform: 'translate(-50%, -50%)',
-                            pointerEvents: 'none'
-                          }}>
-                            <Button
-                              secondary
-                              onClick={(e: any) => {
-                                e.stopPropagation()
-                                handleSelectAcrossGroups(combo, groupingProperty)
-                              }}
-                              onMouseEnter={(e: any) => {
-                                e.currentTarget.style.background = 'var(--figma-color-bg-hover)'
-                                e.currentTarget.style.borderColor = 'var(--figma-color-text-brand)'
-                              }}
-                              onMouseLeave={(e: any) => {
-                                e.currentTarget.style.background = ''
-                                e.currentTarget.style.borderColor = ''
-                              }}
-                              style={{ 
-                                fontSize: '11px', 
-                                padding: 'var(--spacing-xxs) var(--spacing-sm)',
-                                pointerEvents: 'auto',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              Select in All Groups
-                            </Button>
-                          </div>
-                        )}
+                        {/* Select Across Groups Button - Centered, only show on hover */}
+                        {!isInvalid && groupingProperty && Object.keys(groupedCombinations).length > 1 && (() => {
+                          // Check if all matching combos across groups are selected
+                          const matchingCombos = sortedCombinations.filter((c: any) => {
+                            if (c.isValidCombination === false) return false
+                            for (const propName in combo.properties) {
+                              if (propName === groupingProperty) continue
+                              if (c.properties[propName] !== combo.properties[propName]) {
+                                return false
+                              }
+                            }
+                            return true
+                          })
+                          
+                          const allSelected = matchingCombos.every(c => selectedCombinations[getCombinationKey(c)])
+                          
+                          // Show button on hover OR when all are selected
+                          if (!isHovered && !allSelected) return null
+                          
+                          return (
+                            <div style={{
+                              position: 'absolute',
+                              top: '50%',
+                              left: '50%',
+                              transform: 'translate(-50%, -50%)',
+                              pointerEvents: 'none'
+                            }}>
+                              <Button
+                                secondary={!allSelected}
+                                onClick={(e: any) => {
+                                  e.stopPropagation()
+                                  handleSelectAcrossGroups(combo, groupingProperty)
+                                }}
+                                style={{ 
+                                  fontSize: '10px', 
+                                  padding: 'var(--spacing-xxxs) var(--spacing-xs)',
+                                  pointerEvents: 'auto',
+                                  cursor: 'pointer',
+                                  height: 'auto'
+                                }}
+                              >
+                                {allSelected 
+                                  ? 'Deselect from All Groups'
+                                  : 'Select in All Groups'}
+                              </Button>
+                            </div>
+                          )
+                        })()}
                       </div>
                     )
                   })}
