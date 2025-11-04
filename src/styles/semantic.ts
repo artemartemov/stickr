@@ -28,6 +28,7 @@ export const lightMode = {
 
   // ===== BORDER =====
   border: {
+    subtle: primitives.color.gray100,
     default: primitives.color.gray200,
     strong: primitives.color.gray300,
     focus: primitives.color.blue500,        // #4697F8 from DS Coverage
@@ -125,6 +126,7 @@ export const darkMode = {
 
   // ===== BORDER =====
   border: {
+    subtle: primitives.color.gray850,
     default: primitives.color.gray700,
     strong: primitives.color.gray500,
     focus: primitives.color.blue500,

@@ -44,15 +44,15 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = 'sm', foote
         {title && (
           <div
             style={{
-              fontSize: 'var(--font-size-xxl)',
-              fontWeight: 'var(--font-weight-semibold)',
+              fontSize: 'var(--type-heading-section-fontSize)',
+              fontWeight: 'var(--type-heading-section-fontWeight)',
+              letterSpacing: 'var(--type-heading-section-letterSpacing)',
+              textTransform: 'var(--type-heading-section-textTransform)',
               color: 'var(--text-primary)',
-              marginBottom: 'var(--spacing-xl)',
+              marginBottom: '0',
               padding: 'var(--spacing-xxxl)',
               paddingBottom: '0',
               paddingRight: 'var(--spacing-xxxl)',
-              textTransform: 'uppercase',
-              letterSpacing: 'var(--letter-spacing-normal)',
             }}
           >
             {title}
@@ -64,7 +64,7 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = 'sm', foote
             fontSize: 'var(--font-size-base)',
             lineHeight: 'var(--line-height-normal)',
             padding: 'var(--spacing-xxxl)',
-            paddingTop: title ? 'var(--spacing-xl)' : 'var(--spacing-xxxl)',
+            paddingTop: title ? 'var(--spacing-xs)' : 'var(--spacing-xxxl)',
             overflowY: 'auto',
             flex: '1 1 auto',
           }}

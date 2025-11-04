@@ -2137,15 +2137,16 @@ function Plugin() {
                 </div>
               ) : (
                 <>
-                  <Muted style={{ fontSize: '11px', marginBottom: 'var(--spacing-lg)', display: 'block' }}>
+                  <Muted style={{ fontSize: '11px', marginBottom: 'var(--spacing-lg)', display: 'block', textTransform: 'uppercase', letterSpacing: 'var(--type-heading-section-letterSpacing)' }}>
                     Assign each property to Row or Column
                   </Muted>
 
                   <div style={{ marginBottom: 'var(--spacing-xl)' }}>
                     {/* Property Assignment List */}
-                    {propArray.map(prop => {
+                    {propArray.map((prop, index) => {
                       const isRowProp = currentRowProp === prop
                       const isColProp = currentColProps.includes(prop)
+                      const isLast = index === propArray.length - 1
 
                       return (
                         <div
@@ -2155,7 +2156,7 @@ function Plugin() {
                             justifyContent: 'space-between',
                             alignItems: 'center',
                             padding: '8px 0',
-                            borderBottom: '1px solid var(--figma-color-border)'
+                            borderBottom: isLast ? 'none' : '1px solid var(--border-subtle)'
                           }}
                         >
                           {/* Property Name & Info */}
@@ -2202,9 +2203,15 @@ function Plugin() {
                     {currentRowProp && currentColProps.length > 0 && (
                       <div>
                         <div style={{ marginBottom: 'var(--spacing-lg)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <Text style={{ fontSize: '11px', fontWeight: 'var(--section-label-fontWeight)', textTransform: 'var(--section-label-textTransform)', letterSpacing: 'var(--section-label-letterSpacing)' }}>
+                          <div style={{ 
+                            fontSize: 'var(--type-heading-section-fontSize)',
+                            fontWeight: 'var(--type-heading-section-fontWeight)',
+                            letterSpacing: 'var(--type-heading-section-letterSpacing)',
+                            textTransform: 'var(--type-heading-section-textTransform)',
+                            color: 'var(--text-primary)'
+                          }}>
                             Layout Preview
-                          </Text>
+                          </div>
                           {excludedCells.size > 0 && (
                             <Muted style={{ fontSize: '10px' }}>
                               <span style={{ color: 'var(--figma-color-text-danger)' }}>
@@ -2245,8 +2252,8 @@ function Plugin() {
                                   top: 0,
                                   left: 0,
                                   zIndex: 3,
-                                  borderBottom: '1px solid var(--border-default)',
-                                  borderRight: '1px solid var(--border-default)',
+                                  borderBottom: '1px solid var(--border-subtle)',
+                                  borderRight: '1px solid var(--border-subtle)',
                                   minWidth: '100px'
                                 }}>
                                   ↓ {currentRowProp}
@@ -2286,8 +2293,8 @@ function Plugin() {
                                       position: 'sticky',
                                       top: 0,
                                       zIndex: 1,
-                                      borderBottom: '1px solid var(--border-default)',
-                                      borderLeft: idx === 0 ? 'none' : '1px solid var(--border-default)',
+                                      borderBottom: '1px solid var(--border-subtle)',
+                                      borderLeft: idx === 0 ? 'none' : '1px solid var(--border-subtle)',
                                       minWidth: '100px',
                                       maxWidth: '200px',
                                       whiteSpace: 'normal',
@@ -2333,8 +2340,8 @@ function Plugin() {
                                     position: 'sticky',
                                     left: 0,
                                     zIndex: 1,
-                                    borderRight: '1px solid var(--border-default)',
-                                    borderBottom: '1px solid var(--border-default)',
+                                    borderRight: '1px solid var(--border-subtle)',
+                                    borderBottom: '1px solid var(--border-subtle)',
                                     minWidth: '100px'
                                   }}>
                                     {rowValue}
@@ -2381,8 +2388,8 @@ function Plugin() {
                                             fontSize: '10px',
                                             textAlign: 'center',
                                             background: 'var(--bg-primary)',
-                                            borderBottom: '1px solid var(--border-default)',
-                                            borderLeft: colIdx === 0 ? 'none' : '1px solid var(--border-default)',
+                                            borderBottom: '1px solid var(--border-subtle)',
+                                            borderLeft: colIdx === 0 ? 'none' : '1px solid var(--border-subtle)',
                                             opacity: 0.3
                                           }}>
                                             <div style={{
@@ -2405,8 +2412,8 @@ function Plugin() {
                                           fontSize: '10px',
                                           textAlign: 'center',
                                           background: 'var(--bg-primary)',
-                                          borderBottom: '1px solid var(--border-default)',
-                                          borderLeft: colIdx === 0 ? 'none' : '1px solid var(--border-default)'
+                                          borderBottom: '1px solid var(--border-subtle)',
+                                          borderLeft: colIdx === 0 ? 'none' : '1px solid var(--border-subtle)'
                                         }}>
                                           <div style={{
                                             display: 'flex',
