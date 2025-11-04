@@ -23,7 +23,7 @@ export const lightMode = {
     secondary: primitives.color.gray100,
     tertiary: primitives.color.gray850,
     inverse: primitives.color.gray900,
-    hover: primitives.alpha.black10,
+    hover: primitives.alpha.black03,
   },
 
   // ===== BORDER =====
@@ -121,7 +121,7 @@ export const darkMode = {
     secondary: primitives.color.gray850,
     tertiary: primitives.color.gray100,
     inverse: primitives.color.white,
-    hover: primitives.alpha.white10,
+    hover: primitives.alpha.white03,
   },
 
   // ===== BORDER =====

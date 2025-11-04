@@ -31,10 +31,14 @@ export const primitives = {
 
   // Transparency helpers
   alpha: {
+    black03: 'rgba(0, 0, 0, 0.03)',
+    black05: 'rgba(0, 0, 0, 0.05)',
     black10: 'rgba(0, 0, 0, 0.1)',
     black30: 'rgba(0, 0, 0, 0.3)',
     black75: 'rgba(0, 0, 0, 0.75)',
     black90: 'rgba(0, 0, 0, 0.9)',
+    white03: 'rgba(255, 255, 255, 0.03)',
+    white05: 'rgba(255, 255, 255, 0.05)',
     white10: 'rgba(255, 255, 255, 0.1)',
     white20: 'rgba(255, 255, 255, 0.2)',
     white30: 'rgba(255, 255, 255, 0.3)',

@@ -1505,14 +1505,14 @@ function Plugin() {
                           background: bgColor,
                           borderRadius: '3px',
                           padding: 'var(--spacing-lg)',
-                          border: isInvalid 
-                            ? '1px dashed var(--figma-color-border)' 
-                            : isSelected 
-                              ? '1px solid var(--border-default)' 
+                          border: isInvalid
+                            ? '1px dashed var(--figma-color-border)'
+                            : isSelected
+                              ? '1px solid var(--border-default)'
                               : '1px solid transparent',
                           display: 'flex',
                           gap: 'var(--spacing-lg)',
-                          alignItems: 'flex-start',
+                          alignItems: 'center',
                           opacity: isInvalid ? 0.5 : 1,
                           position: 'relative'
                         }}
@@ -1573,7 +1573,7 @@ function Plugin() {
                             </div>
                           )}
                           
-                          <div style={{ display: 'flex', gap: 'var(--spacing-lg)', alignItems: 'flex-start' }}>
+                          <div style={{ display: 'flex', gap: 'var(--spacing-lg)', alignItems: 'center' }}>
                           {combo.properties && Object.keys(combo.properties).length > 0 && (() => {
                             // Separate boolean and variant properties
                             const boolProps: [string, any][] = []
@@ -1701,24 +1701,38 @@ function Plugin() {
                               transform: 'translate(-50%, -50%)',
                               pointerEvents: 'none'
                             }}>
-                              <Button
-                                secondary={!allSelected}
+                              <button
                                 onClick={(e: any) => {
                                   e.stopPropagation()
                                   handleSelectAcrossGroups(combo, groupingProperty)
                                 }}
                                 style={{ 
-                                  fontSize: '10px', 
-                                  padding: 'var(--spacing-xxxs) var(--spacing-xs)',
-                                  pointerEvents: 'auto',
+                                  minWidth: '50px',
+                                  height: '24px',
+                                  padding: '0 var(--spacing-sm)',
+                                  fontSize: '10px',
+                                  fontFamily: "'IBM Plex Mono', monospace",
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '1px',
+                                  borderRadius: '3px',
+                                  border: 'none',
+                                  background: allSelected ? 'var(--button-tertiary-bgActive)' : 'var(--button-tertiary-bg)',
+                                  color: 'var(--text-primary)',
                                   cursor: 'pointer',
-                                  height: 'auto'
+                                  pointerEvents: 'auto',
+                                  transition: 'background-color 0.15s ease',
+                                }}
+                                onMouseEnter={(e: any) => {
+                                  e.currentTarget.style.background = 'var(--button-tertiary-bgHover)'
+                                }}
+                                onMouseLeave={(e: any) => {
+                                  e.currentTarget.style.background = allSelected ? 'var(--button-tertiary-bgActive)' : 'var(--button-tertiary-bg)'
                                 }}
                               >
                                 {allSelected 
-                                  ? 'Deselect from All Groups'
+                                  ? <><span style={{ marginRight: '4px' }}>✗</span>Deselect from All Groups</>
                                   : 'Select in All Groups'}
-                              </Button>
+                              </button>
                             </div>
                           )
                         })()}
@@ -1764,7 +1778,7 @@ function Plugin() {
                                 : '1px solid transparent',
                             display: 'flex',
                             gap: 'var(--spacing-lg)',
-                            alignItems: 'flex-start',
+                            alignItems: 'center',
                             opacity: isInvalid ? 0.5 : 1,
                             position: 'relative'
                           }}
@@ -1825,7 +1839,7 @@ function Plugin() {
                               </div>
                             )}
 
-                            <div style={{ display: 'flex', gap: 'var(--spacing-lg)', alignItems: 'flex-start' }}>
+                            <div style={{ display: 'flex', gap: 'var(--spacing-lg)', alignItems: 'center' }}>
                             {combo.properties && Object.keys(combo.properties).length > 0 && (() => {
                               // Separate boolean and variant properties
                               const boolProps: [string, any][] = []

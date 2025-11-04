@@ -26,9 +26,9 @@ export const ToggleButton = ({
   const [isHovered, setIsHovered] = useState(false);
 
   const getBackgroundColor = () => {
-    if (selected) return '#f5f5f5';
-    if (isHovered && !disabled) return '#eee';
-    return 'transparent';
+    if (selected) return 'var(--button-tertiary-bgActive)';
+    if (isHovered && !disabled) return 'var(--button-tertiary-bgHover)';
+    return 'var(--button-tertiary-bg)';
   };
 
   return (
