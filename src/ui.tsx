@@ -1378,7 +1378,7 @@ function Plugin() {
                               <div style={{
                                 padding: 'var(--spacing-lg)',
                                 background: 'var(--figma-color-bg-secondary)',
-                                borderRadius: '6px',
+                                borderRadius: '0',
                                 border: '1px solid var(--figma-color-border)',
                                 marginBottom: 'var(--spacing-xxs)'
                               }}>
@@ -1492,9 +1492,9 @@ function Plugin() {
                     if (isInvalid) {
                       bgColor = 'var(--figma-color-bg-disabled)'
                     } else if (isSelected) {
-                      bgColor = 'var(--figma-color-bg-selected)'
+                      bgColor = 'var(--bg-secondary)'
                     } else if (isHovered) {
-                      bgColor = 'var(--figma-color-bg-hover)'
+                      bgColor = 'var(--bg-hover)'
                     }
 
                     return (
@@ -1503,12 +1503,12 @@ function Plugin() {
                         style={{
                           cursor: isInvalid ? 'not-allowed' : 'pointer',
                           background: bgColor,
-                          borderRadius: '6px',
+                          borderRadius: '3px',
                           padding: 'var(--spacing-lg)',
                           border: isInvalid 
                             ? '1px dashed var(--figma-color-border)' 
                             : isSelected 
-                              ? '1px solid var(--figma-color-text-brand)' 
+                              ? '1px solid var(--border-default)' 
                               : '1px solid transparent',
                           display: 'flex',
                           gap: 'var(--spacing-lg)',
@@ -1525,7 +1525,7 @@ function Plugin() {
                           width: '96px',
                           height: '96px',
                           flexShrink: 0,
-                          borderRadius: '6px',
+                          borderRadius: '3px',
                           overflow: 'hidden',
                           background: 'var(--figma-color-bg-tertiary)',
                           display: 'flex',
@@ -1648,7 +1648,9 @@ function Plugin() {
                                           <span style={{
                                             display: 'inline-flex',
                                             alignItems: 'center',
-                                            padding: 'var(--spacing-xxxs)',
+                                            justifyContent: 'center',
+                                            width: '16px',
+                                            height: '16px',
                                             borderRadius: '3px',
                                             background: boolValue
                                               ? 'var(--figma-color-bg-success)'
@@ -1725,21 +1727,21 @@ function Plugin() {
                       const isInvalid = combo.isValidCombination === false
 
                       let bgColor = 'transparent'
-                      if (isInvalid) {
-                        bgColor = 'var(--figma-color-bg-disabled)'
-                      } else if (isSelected) {
-                        bgColor = 'var(--figma-color-bg-selected)'
-                      } else if (isHovered) {
-                        bgColor = 'var(--figma-color-bg-hover)'
-                      }
+                    if (isInvalid) {
+                      bgColor = 'var(--figma-color-bg-disabled)'
+                    } else if (isSelected) {
+                      bgColor = 'var(--bg-secondary)'
+                    } else if (isHovered) {
+                      bgColor = 'var(--bg-hover)'
+                    }
 
                       return (
                         <div
                           key={index}
                           style={{
                             cursor: isInvalid ? 'not-allowed' : 'pointer',
-                            background: bgColor,
-                            borderRadius: '6px',
+                          background: bgColor,
+                          borderRadius: '3px',
                             padding: 'var(--spacing-lg)',
                             border: isInvalid
                               ? '1px dashed var(--figma-color-border)'
@@ -1757,11 +1759,11 @@ function Plugin() {
                           onClick={(e: any) => !isInvalid && handleCombinationToggle(key, index, e.shiftKey)}
                         >
                           {/* Thumbnail */}
-                          <div style={{
-                            width: '96px',
-                            height: '96px',
-                            flexShrink: 0,
-                            borderRadius: '6px',
+                        <div style={{
+                          width: '96px',
+                          height: '96px',
+                          flexShrink: 0,
+                          borderRadius: '3px',
                             overflow: 'hidden',
                             background: 'var(--figma-color-bg-tertiary)',
                             display: 'flex',
@@ -1878,20 +1880,22 @@ function Plugin() {
                                               {key}
                                             </span>
                                             <span style={{
-                                              display: 'inline-flex',
-                                              alignItems: 'center',
-                                              padding: 'var(--spacing-xxxs)',
-                                              borderRadius: '3px',
-                                              background: boolValue
-                                                ? 'var(--figma-color-bg-success)'
-                                                : 'var(--figma-color-bg-secondary)',
-                                              fontSize: '10px',
-                                              color: boolValue ? 'var(--figma-color-text-onbrand)' : 'var(--figma-color-text-tertiary)',
-                                              fontWeight: 600,
-                                              lineHeight: 1
-                                            }}>
-                                              {boolValue ? '✓' : '✗'}
-                                            </span>
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            width: '16px',
+                                            height: '16px',
+                                            borderRadius: '3px',
+                                            background: boolValue
+                                              ? 'var(--figma-color-bg-success)'
+                                              : 'var(--figma-color-bg-secondary)',
+                                            fontSize: '10px',
+                                            color: boolValue ? 'var(--figma-color-text-onbrand)' : 'var(--figma-color-text-tertiary)',
+                                            fontWeight: 600,
+                                            lineHeight: 1
+                                          }}>
+                                            {boolValue ? '✓' : '✗'}
+                                          </span>
                                           </div>
                                         )
                                       })}
