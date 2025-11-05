@@ -1415,58 +1415,78 @@ function Plugin() {
                               cursor: groupKey === '__INVALID__' ? 'default' : 'pointer',
                               userSelect: 'none',
                               marginLeft: '-2px',
-                              opacity: 1,
-                              transition: groupKey === '__INVALID__' ? 'none' : 'opacity 0.15s ease'
                             }}
                             onClick={() => groupKey !== '__INVALID__' && handleGroupToggle(groupKey)}
-                            onMouseEnter={(e: any) => groupKey !== '__INVALID__' && (e.currentTarget.style.opacity = '0.6')}
-                            onMouseLeave={(e: any) => groupKey !== '__INVALID__' && (e.currentTarget.style.opacity = '1')}
+                            onMouseEnter={(e: any) => {
+                              if (groupKey !== '__INVALID__') {
+                                const textWrapper = e.currentTarget.querySelector('.group-header-text');
+                                if (textWrapper) textWrapper.style.opacity = '0.6';
+                              }
+                            }}
+                            onMouseLeave={(e: any) => {
+                              if (groupKey !== '__INVALID__') {
+                                const textWrapper = e.currentTarget.querySelector('.group-header-text');
+                                if (textWrapper) textWrapper.style.opacity = '1';
+                              }
+                            }}
                           >
-                            {/* Chevron Icon - Only show for valid groups */}
-                            {groupKey !== '__INVALID__' && (
-                              <div style={{
-                                transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
-                                transition: 'transform 0.15s ease',
+                            {/* Text content wrapper - only this gets opacity on hover */}
+                            <div
+                              className="group-header-text"
+                              style={{
                                 display: 'flex',
                                 alignItems: 'center',
-                                color: 'var(--figma-color-text-secondary)',
-                                marginRight: 'var(--spacing-xxxs)',
+                                gap: 'var(--spacing-xxs)',
+                                flex: 1,
+                                opacity: 1,
+                                transition: groupKey === '__INVALID__' ? 'none' : 'opacity 0.15s ease',
                                 pointerEvents: 'none'
-                              }}>
-                                <IconChevronDown16 />
-                              </div>
-                            )}
-
-                            {/* Title */}
-                            <div style={{
-                              fontSize: 'var(--font-size-sm)',
-                              textTransform: 'uppercase',
-                              pointerEvents: 'none',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 'var(--spacing-xxs)'
-                            }}>
-                              {groupKey === '__INVALID__' ? (
-                                <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
-                                  Invalid Combinations
-                                </span>
-                              ) : (
-                                <>
-                                  <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
-                                    {groupingProperty}:
-                                  </span>
-                                  <span style={{ color: 'var(--text-secondary)' }}>
-                                    {groupKey}
-                                  </span>
-                                </>
+                              }}
+                            >
+                              {/* Chevron Icon - Only show for valid groups */}
+                              {groupKey !== '__INVALID__' && (
+                                <div style={{
+                                  transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
+                                  transition: 'transform 0.15s ease',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  color: 'var(--figma-color-text-secondary)',
+                                  marginRight: 'var(--spacing-xxxs)',
+                                }}>
+                                  <IconChevronDown16 />
+                                </div>
                               )}
+
+                              {/* Title */}
+                              <div style={{
+                                fontSize: 'var(--font-size-sm)',
+                                textTransform: 'uppercase',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 'var(--spacing-xxs)'
+                              }}>
+                                {groupKey === '__INVALID__' ? (
+                                  <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
+                                    Invalid Combinations
+                                  </span>
+                                ) : (
+                                  <>
+                                    <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
+                                      {groupingProperty}:
+                                    </span>
+                                    <span style={{ color: 'var(--text-secondary)' }}>
+                                      {groupKey}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+
+                              {/* Count */}
+                              <Muted style={{ marginLeft: 'var(--spacing-xs)', textTransform: 'uppercase', fontSize: 'var(--font-size-sm)' }}>
+                                {groupKey === '__INVALID__' ? groupCombos.length : `${groupSelectedCount} / ${groupCombos.length}`}
+                              </Muted>
                             </div>
 
-                            {/* Count */}
-                            <Muted style={{ marginLeft: 'var(--spacing-xs)', pointerEvents: 'none', textTransform: 'uppercase', fontSize: 'var(--font-size-sm)' }}>
-                              {groupKey === '__INVALID__' ? groupCombos.length : `${groupSelectedCount} / ${groupCombos.length}`}
-                            </Muted>
-                            
                             {/* Select All Toggle */}
                             {groupKey !== '__INVALID__' && (
                               <div style={{ marginLeft: 'auto' }} onClick={(e: any) => e.stopPropagation()}>
