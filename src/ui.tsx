@@ -1,12 +1,9 @@
 import { emit, on } from '@create-figma-plugin/utilities'
 import {
-  Button,
-  Checkbox,
   Container,
   render,
   VerticalSpace,
   SelectableItem,
-  Text,
   IconBoolean16,
   IconInstance16,
   IconComponentProperty16,
@@ -16,16 +13,18 @@ import {
   Dropdown,
   DropdownOption,
   TextboxMultiline,
-  Modal,
-  IconButton,
   IconPlus16,
-  IconClose16
+  IconClose16,
+  IconAi16,
+  IconComponent16
 } from '@create-figma-plugin/ui'
 import { h, Fragment } from 'preact'
-import { useState, useEffect } from 'preact/hooks'
+import { useState, useEffect, useRef } from 'preact/hooks'
 import * as yaml from 'js-yaml'
 import type { AnovaSpec } from './types/anova'
 import { filterValidVariants } from './types/anova'
+import { themeStyles } from './styles/theme'
+import { Button, Checkbox, IconButton, Text, Modal, Toggle, ToggleButton, Input, TextArea, Separator, Spacer, Tooltip } from './components'
 
 type DataSource = 'figma-direct' | 'anova'
 
@@ -55,6 +54,7 @@ function Plugin() {
   const [sortColumn, setSortColumn] = useState<string | null>(null)
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
   const [isPropertiesCollapsed, setIsPropertiesCollapsed] = useState(true)
+  const [isFiltersCollapsed, setIsFiltersCollapsed] = useState(true)
   const [hoveredRow, setHoveredRow] = useState<string | null>(null)
   const [collapsedGroups, setCollapsedGroups] = useState<{ [key: string]: boolean }>({})
   const [activeFilters, setActiveFilters] = useState<{ [propName: string]: string | null }>({})
@@ -64,7 +64,7 @@ function Plugin() {
   const [componentDataInput, setComponentDataInput] = useState<string>('')
   const [componentDataSpec, setComponentDataSpec] = useState<AnovaSpec | null>(null)
   const [componentDataError, setComponentDataError] = useState<string>('')
-  const [isComponentDataModalOpen, setIsComponentDataModalOpen] = useState(false)
+  const [isComponentDataCollapsed, setIsComponentDataCollapsed] = useState(true)
   const [selectedGroupingProperty, setSelectedGroupingProperty] = useState<string | null>(null)
 
   // Layout customization state
@@ -315,9 +315,9 @@ function Plugin() {
       return true
     })
 
-    // Determine if we should select or deselect based on the current combo's state
-    const currentKey = getCombinationKey(combo)
-    const shouldSelect = !selectedCombinations[currentKey]
+    // Determine if we should select or deselect based on whether ALL are selected
+    const allSelected = matchingCombos.every(c => selectedCombinations[getCombinationKey(c)])
+    const shouldSelect = !allSelected
 
     const newState = { ...selectedCombinations }
     matchingCombos.forEach(matchingCombo => {
@@ -819,6 +819,7 @@ function Plugin() {
 
   return (
     <>
+      <style dangerouslySetInnerHTML={{ __html: themeStyles }} />
       <style>
         {`
           @keyframes spin {
@@ -858,7 +859,7 @@ function Plugin() {
           onClick={() => handleModeChange('figma-direct')}
           style={{
             flex: 1,
-            padding: '12px',
+            padding: 'var(--spacing-lg)',
             textAlign: 'center',
             cursor: 'pointer',
             borderBottom: dataSource === 'figma-direct' ? '2px solid var(--figma-color-text-brand)' : '2px solid transparent',
@@ -875,7 +876,7 @@ function Plugin() {
             onClick={() => handleModeChange('anova')}
             style={{
               flex: 1,
-              padding: '12px',
+              padding: 'var(--spacing-lg)',
               textAlign: 'center',
               cursor: 'pointer',
               borderBottom: dataSource === 'anova' ? '2px solid var(--figma-color-text-brand)' : '2px solid transparent',
@@ -894,16 +895,15 @@ function Plugin() {
       {/* Anova Input Section */}
       {dataSource === 'anova' && (
         <div style={{ display: 'flex', flexDirection: 'column', flexShrink: 0, borderBottom: '1px solid var(--figma-color-border)' }}>
-          <div style={{ padding: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ padding: 'var(--spacing-lg)', display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
             {anovaSpec && (
               <>
                 <div style={{
-                  fontFamily: 'var(--text-body-large-strong-font-family)',
-                  fontSize: 'var(--text-body-large-strong-font-size)',
-                  fontWeight: 600,
-                  letterSpacing: 'var(--text-body-large-strong-letter-spacing)',
-                  lineHeight: 'var(--text-body-large-strong-line-height)',
-                  color: 'var(--figma-color-text)'
+                  fontSize: 'var(--type-heading-section-fontSize)',
+                fontWeight: 'var(--type-heading-section-fontWeight)',
+                letterSpacing: 'var(--type-heading-section-letterSpacing)',
+                textTransform: 'var(--type-heading-section-textTransform)',
+                color: 'var(--text-primary)'
                 }}>
                   {anovaSpec.title}
                 </div>
@@ -917,7 +917,7 @@ function Plugin() {
               style={{
                 flex: 1,
                 height: '30px',
-                padding: '6px 8px',
+                padding: 'var(--spacing-xs) var(--spacing-sm)',
                 fontFamily: 'var(--font-stack)',
                 fontSize: '11px',
                 border: '1px solid var(--figma-color-border)',
@@ -960,47 +960,33 @@ function Plugin() {
           style={{ padding: '12px 12px 4px 12px', minHeight: '40px', cursor: 'pointer', position: 'sticky', top: 0, background: 'var(--figma-color-bg)', zIndex: 1 }}
           onClick={() => setIsPropertiesCollapsed(!isPropertiesCollapsed)}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{ 
-                fontFamily: 'var(--text-body-large-strong-font-family)',
-                fontSize: 'var(--text-body-large-strong-font-size)',
-                fontWeight: 600,
-                letterSpacing: 'var(--text-body-large-strong-letter-spacing)',
-                lineHeight: 'var(--text-body-large-strong-line-height)',
-                color: 'var(--figma-color-text)'
-              }}>
-                Properties
-              </div>
-              {componentSets.length > 0 && (
-                <>
-                  <div style={{ fontSize: '11px', color: 'var(--figma-color-text-tertiary)' }}>·</div>
-                  <div style={{ fontSize: '11px', color: 'var(--figma-color-text)' }}>
-                    {componentSets[0].name}
-                  </div>
-                </>
-              )}
-            </div>
+          <div style={{ display: 'flex', alignItems: 'baseline', width: '100%' }}>
             <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              transform: isPropertiesCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
-              transition: 'transform 0.2s ease',
-              color: 'var(--figma-color-text-secondary)'
+              fontSize: 'var(--type-heading-section-fontSize)',
+              fontWeight: 'var(--type-heading-section-fontWeight)',
+              letterSpacing: 'var(--type-heading-section-letterSpacing)',
+              textTransform: 'var(--type-heading-section-textTransform)',
+              color: 'var(--text-primary)',
+              lineHeight: '1'
             }}>
-              <IconChevronDown16 />
+              Properties
             </div>
+            {componentSets.length > 0 && (
+              <Muted style={{ marginLeft: 'var(--spacing-xs)', textTransform: 'uppercase', fontSize: 'var(--font-size-sm)', lineHeight: '1' }}>
+                {componentSets[0].name}
+              </Muted>
+            )}
           </div>
         </div>
 
         {!isPropertiesCollapsed && (
           <div style={{ maxHeight: '30vh', overflowY: 'auto' }}>
         {propertyOrder.length === 0 ? (
-          <div style={{ marginBottom: '16px', textAlign: 'center', paddingTop: '40px' }}>
+          <div style={{ marginBottom: 'var(--spacing-xl)', textAlign: 'center', paddingTop: '40px' }}>
             <Muted>No properties found</Muted>
           </div>
         ) : (
-          <div style={{ marginBottom: '16px' }}>
+          <div style={{ marginBottom: 'var(--spacing-xl)' }}>
             {propertyOrder.map(propName => {
               const prop = allProperties[propName]
               // Only treat as variant if it has 3+ values
@@ -1028,13 +1014,13 @@ function Plugin() {
                   style={{ cursor: isVariant ? 'not-allowed' : 'pointer' }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                    <div style={{ marginRight: '8px', display: 'flex', alignItems: 'center', opacity: 0.6 }}>
+                    <div style={{ marginRight: 'var(--spacing-sm)', display: 'flex', alignItems: 'center', opacity: 0.6 }}>
                       {icon}
                     </div>
                     <div style={{ flex: 1 }}>
                       <span>{propName}</span>
                       {prop.values && prop.values.length > 0 && (
-                        <span style={{ color: 'var(--figma-color-text-tertiary)', marginLeft: '4px' }}>
+                        <span style={{ color: 'var(--figma-color-text-tertiary)', marginLeft: 'var(--spacing-xxs)' }}>
                           · {prop.values.join(', ')}
                         </span>
                       )}
@@ -1056,95 +1042,66 @@ function Plugin() {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
         <>
             <div
-              style={{ display: 'flex', flexDirection: 'column', gap: '8px', flexShrink: 0, padding: '12px 12px 4px 12px', minHeight: '40px', position: 'sticky', top: 0, background: 'var(--figma-color-bg)', zIndex: 1 }}
+              style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)', flexShrink: 0, padding: '12px 12px 4px 12px', minHeight: '40px', position: 'sticky', top: 0, background: 'var(--figma-color-bg)', zIndex: 1 }}
             >
               {/* First Row: Preview heading, count, status, and Select All button */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
                   <div style={{
-                    fontFamily: 'var(--text-body-large-strong-font-family)',
-                    fontSize: 'var(--text-body-large-strong-font-size)',
-                    fontWeight: 600,
-                    letterSpacing: 'var(--text-body-large-strong-letter-spacing)',
-                    lineHeight: 'var(--text-body-large-strong-line-height)',
-                    color: 'var(--figma-color-text)'
+                    fontSize: 'var(--type-heading-section-fontSize)',
+                fontWeight: 'var(--type-heading-section-fontWeight)',
+                letterSpacing: 'var(--type-heading-section-letterSpacing)',
+                textTransform: 'var(--type-heading-section-textTransform)',
+                color: 'var(--text-primary)'
                   }}>
                     Preview
                   </div>
-                <div style={{ fontSize: '11px', color: 'var(--figma-color-text-tertiary)' }}>·</div>
-                <div style={{ fontSize: '11px', color: 'var(--figma-color-text)' }}>
-                  {Object.values(selectedCombinations).filter(v => v).length} / {sortedCombinations.filter((c: any) => c.isValidCombination !== false).length} selected
-                </div>
-                
-                {dataSource === 'figma-direct' && componentDataSpec && sortedCombinations.some((c: any) => c.isValidCombination === false) && (
-                  <>
-                    <div style={{ fontSize: '11px', color: 'var(--figma-color-text-tertiary)' }}>·</div>
-                    <div style={{ fontSize: '11px', color: 'var(--figma-color-text-secondary)' }}>
-                      {sortedCombinations.length} total (<span
-                        onClick={() => {
-                          const invalidSection = document.getElementById('invalid-combinations-group')
-                          if (invalidSection) {
-                            invalidSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                          }
-                        }}
-                        style={{
-                          color: 'var(--figma-color-text-brand)',
-                          cursor: 'pointer',
-                          textDecoration: 'underline'
-                        }}
-                        onMouseEnter={(e: any) => e.currentTarget.style.opacity = '0.7'}
-                        onMouseLeave={(e: any) => e.currentTarget.style.opacity = '1'}
->{sortedCombinations.filter((c: any) => c.isValidCombination === false).length} invalid</span>)
-                    </div>
-                  </>
-                )}
-                
-                {/* Add/Remove Component Data Button - After total count */}
-                {dataSource === 'figma-direct' && componentSets.length > 0 && (
-                  <>
-                    <div style={{ fontSize: '11px', color: 'var(--figma-color-text-tertiary)' }}>·</div>
-                    <div style={{ position: 'relative' }} className="tooltip-wrapper">
-                      <IconButton
-                        onClick={() => {
-                          if (componentDataSpec) {
-                            // Remove component data
-                            setComponentDataInput('')
-                            setComponentDataSpec(null)
-                            setComponentDataError('')
-                          } else {
-                            // Add component data
-                            setIsComponentDataModalOpen(true)
-                          }
-                        }}
-                      >
-                        {componentDataSpec ? (
-                          <div style={{ 
-                            color: 'var(--figma-color-text-danger)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }}>
-                            <IconClose16 />
-                          </div>
-                        ) : (
-                          <IconPlus16 />
-                        )}
-                      </IconButton>
-                      <div className="tooltip">
-                        {componentDataSpec ? 'Remove Component Data' : 'Add Component Data'}
-                      </div>
-                    </div>
-                  </>
-                )}
-                
+                <Muted style={{ marginLeft: 'var(--spacing-xs)', textTransform: 'uppercase', fontSize: 'var(--font-size-sm)' }}>
+                  {(() => {
+                    const selectedCount = Object.values(selectedCombinations).filter(v => v).length
+                    const validCount = sortedCombinations.filter((c: any) => c.isValidCombination !== false).length
+                    const invalidCount = sortedCombinations.filter((c: any) => c.isValidCombination === false).length
+
+                    // Show different messages based on data state
+                    if (dataSource === 'figma-direct' && componentDataSpec && invalidCount > 0) {
+                      // When data is added and there are invalid combinations
+                      return (
+                        <>
+                          {selectedCount} / {validCount} <span
+                            onClick={() => {
+                              const invalidSection = document.getElementById('invalid-combinations-group')
+                              if (invalidSection) {
+                                invalidSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                              }
+                            }}
+                            style={{
+                              color: 'var(--text-primary)',
+                              cursor: 'pointer',
+                              transition: 'color 0.15s ease',
+                              marginLeft: 'var(--spacing-xs)',
+                              fontSize: 'var(--font-size-sm)'
+                            }}
+                            onMouseEnter={(e: any) => e.currentTarget.style.color = 'var(--text-secondary)'}
+                            onMouseLeave={(e: any) => e.currentTarget.style.color = 'var(--text-primary)'}
+                          >{invalidCount} invalid</span>
+                        </>
+                      )
+                    } else {
+                      // Default: just show selected count
+                      return `${selectedCount} / ${validCount}`
+                    }
+                  })()}
+                </Muted>
+
+
                 {(waitingForAutoSelect || previewsLoading || previewsError) && dataSource === 'anova' && (
                   <>
                     <div style={{ fontSize: '11px', color: 'var(--figma-color-text-tertiary)' }}>·</div>
                     <div style={{
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '6px',
-                      padding: '4px 8px',
+                      gap: 'var(--spacing-xs)',
+                      padding: 'var(--spacing-xxs) var(--spacing-sm)',
                       borderRadius: '3px',
                       background: previewsError
                         ? 'var(--figma-color-bg-danger-tertiary)'
@@ -1173,22 +1130,141 @@ function Plugin() {
                   </>
                 )}
                 </div>
-                <Checkbox
-                  value={(() => {
-                    const validCombinationKeys = sortedCombinations
-                      .filter((c: any) => c.isValidCombination !== false)
-                      .map(combo => getCombinationKey(combo))
-                    return validCombinationKeys.every(key => selectedCombinations[key])
-                  })()}
-                  onValueChange={handleSelectAll}
-                >
-                  <Text>Select All</Text>
-                </Checkbox>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
+                  {/* Add/Remove Component Data Button */}
+                  {dataSource === 'figma-direct' && componentSets.length > 0 && (
+                    <div 
+                      className="toggle-button-group" 
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '0' }}
+                    >
+                      {componentDataSpec && (
+                        <Tooltip content="Clear data" position="left">
+                          <button
+                            type="button"
+                            className="clear-data-icon"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setComponentDataInput('')
+                              setComponentDataSpec(null)
+                              setComponentDataError('')
+                            }}
+                            style={{
+                              height: '24px',
+                              width: '20px',
+                              padding: '0',
+                              fontSize: '10px',
+                              fontFamily: "'IBM Plex Mono', monospace",
+                              textTransform: 'uppercase',
+                              letterSpacing: '1px',
+                              borderRadius: '3px 0 0 3px',
+                              border: 'none',
+                              background: 'var(--button-tertiary-bg)',
+                              color: 'var(--text-primary)',
+                              transition: 'background-color 0.15s ease',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              marginRight: '-2px',
+                            }}
+                          >
+                            <IconClose16 style={{ width: '10px', height: '10px', transition: 'opacity 0.15s ease' }} />
+                          </button>
+                        </Tooltip>
+                      )}
+                      <ToggleButton
+                        selected={!isComponentDataCollapsed || !!componentDataSpec}
+                        onClick={() => {
+                          setIsComponentDataCollapsed(!isComponentDataCollapsed)
+                          if (isComponentDataCollapsed) {
+                            // If opening Data, close Filters
+                            setIsFiltersCollapsed(true)
+                          }
+                        }}
+                        style={{ 
+                          minWidth: 'auto',
+                          borderRadius: componentDataSpec ? '0 3px 3px 0' : '3px'
+                        }}
+                      >
+                        Data
+                      </ToggleButton>
+                    </div>
+                  )}
+                  <ToggleButton
+                    selected={!isFiltersCollapsed}
+                    onClick={() => {
+                      setIsFiltersCollapsed(!isFiltersCollapsed)
+                      if (isFiltersCollapsed) {
+                        // If opening Filters, close Data
+                        setIsComponentDataCollapsed(true)
+                      }
+                    }}
+                  >
+                    Filter
+                  </ToggleButton>
+                  <Toggle
+                    value={(() => {
+                      const validCombinationKeys = sortedCombinations
+                        .filter((c: any) => c.isValidCombination !== false)
+                        .map(combo => getCombinationKey(combo))
+                      return validCombinationKeys.every(key => selectedCombinations[key])
+                    })()}
+                    onValueChange={handleSelectAll}
+                  >
+                    Select All
+                  </Toggle>
+                </div>
               </div>
 
+              {/* Component Data Section */}
+              {!isComponentDataCollapsed && dataSource === 'figma-direct' && (
+                <div style={{ paddingTop: 'var(--spacing-sm)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
+                  <TextboxMultiline
+                    value={componentDataInput}
+                    onValueInput={setComponentDataInput}
+                    placeholder="Paste JSON or YAML component data"
+                    rows={3}
+                    style={{ fontSize: '11px', fontFamily: 'var(--font-family-code)' }}
+                  />
+                  <div style={{ display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'center', justifyContent: 'flex-end' }}>
+                    {componentDataError && (
+                      <Muted style={{ color: 'var(--figma-color-text-danger)', fontSize: '11px', marginRight: 'auto' }}>
+                        {componentDataError}
+                      </Muted>
+                    )}
+                    {componentDataSpec && (
+                      <Muted style={{ color: 'var(--figma-color-text-success)', fontSize: '11px', marginRight: 'auto' }}>
+                        ✓ {componentDataSpec.title}
+                      </Muted>
+                    )}
+                    {componentDataSpec && (
+                      <Button
+                        onClick={() => {
+                          setComponentDataInput('')
+                          setComponentDataSpec(null)
+                          setComponentDataError('')
+                        }}
+                        secondary
+                        style={{ height: '28px', fontSize: '11px', borderRadius: '3px' }}
+                      >
+                        Clear
+                      </Button>
+                    )}
+                    <Button
+                      onClick={() => {
+                        handleComponentDataParse()
+                      }}
+                      disabled={!componentDataInput.trim()}
+                      style={{ height: '28px', fontSize: '11px', borderRadius: '3px' }}
+                    >
+                      Apply
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               {/* Second Row: Filtering and Sorting Controls */}
-              {previewCombinations.length > 0 && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {!isFiltersCollapsed && previewCombinations.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', paddingTop: 'var(--spacing-sm)' }}>
                   {/* Grouping Property Selector - Show when there are multiple VARIANT properties */}
                   {(() => {
                   let groupableProps: string[] = []
@@ -1232,16 +1308,18 @@ function Plugin() {
 
                   return (
                     <div style={{ minWidth: '140px' }}>
-                      <Muted style={{ fontSize: '10px', fontWeight: 600, marginBottom: '4px', display: 'block' }}>Group by</Muted>
-                      <Dropdown
-                        value={currentGrouping || ''}
-                        options={groupOptions}
-                        onChange={(e) => setSelectedGroupingProperty(e.currentTarget.value)}
-                        style={{
-                          fontSize: '11px',
-                          fontWeight: 500
-                        }}
-                      />
+                      <Muted style={{ fontSize: 'var(--section-label-fontSize)', fontWeight: 'var(--section-label-fontWeight)', letterSpacing: 'var(--section-label-letterSpacing)', textTransform: 'var(--section-label-textTransform)', marginBottom: 'var(--spacing-xxs)', display: 'block' }}>Group by</Muted>
+                      <div className="dropdown-wrapper">
+                        <Dropdown
+                          value={currentGrouping || ''}
+                          options={groupOptions}
+                          onChange={(e) => setSelectedGroupingProperty(e.currentTarget.value)}
+                          style={{
+                            fontSize: '11px',
+                            fontWeight: 500
+                          }}
+                        />
+                      </div>
                     </div>
                   )
                 })()}
@@ -1280,16 +1358,18 @@ function Plugin() {
 
                         return (
                           <div key={propName} style={{ minWidth: '100px' }}>
-                            <Dropdown
-                              value={currentFilter || ''}
-                              options={options}
-                              onChange={(newValue) => handleFilterChange(propName, newValue.currentTarget.value || null)}
-                              style={{
-                                fontSize: '11px',
-                                borderColor: currentFilter ? 'var(--figma-color-text-brand)' : undefined,
-                                fontWeight: currentFilter ? 600 : 400
-                              }}
-                            />
+                            <div className="dropdown-wrapper">
+                              <Dropdown
+                                value={currentFilter || ''}
+                                options={options}
+                                onChange={(newValue) => handleFilterChange(propName, newValue.currentTarget.value || null)}
+                                style={{
+                                  fontSize: '11px',
+                                  borderColor: currentFilter ? 'var(--figma-color-text-brand)' : undefined,
+                                  fontWeight: currentFilter ? 600 : 400
+                                }}
+                              />
+                            </div>
                           </div>
                         )
                       })}
@@ -1323,56 +1403,101 @@ function Plugin() {
                         <div 
                           key={groupKey} 
                           id={groupKey === '__INVALID__' ? 'invalid-combinations-group' : undefined}
-                          style={{ marginBottom: isCollapsed ? '8px' : '16px' }}
+                          style={{ marginBottom: isCollapsed ? '0' : '16px' }}
                         >
                           {/* Custom Minimal Disclosure Header */}
                           <div
                             style={{
                               display: 'flex',
                               alignItems: 'center',
-                              gap: '4px',
-                              padding: '4px 0',
-                              cursor: 'pointer',
+                              gap: 'var(--spacing-xxs)',
+                              padding: '4px 0 0 0',
+                              cursor: groupKey === '__INVALID__' ? 'default' : 'pointer',
                               userSelect: 'none',
-                              marginLeft: '-2px'
+                              marginLeft: '-2px',
                             }}
-                            onClick={() => handleGroupToggle(groupKey)}
+                            onClick={() => groupKey !== '__INVALID__' && handleGroupToggle(groupKey)}
+                            onMouseEnter={(e: any) => {
+                              if (groupKey !== '__INVALID__') {
+                                const textWrapper = e.currentTarget.querySelector('.group-header-text');
+                                if (textWrapper) textWrapper.style.opacity = '0.6';
+                              }
+                            }}
+                            onMouseLeave={(e: any) => {
+                              if (groupKey !== '__INVALID__') {
+                                const textWrapper = e.currentTarget.querySelector('.group-header-text');
+                                if (textWrapper) textWrapper.style.opacity = '1';
+                              }
+                            }}
                           >
-                            {/* Chevron Icon */}
-                            <div style={{
-                              transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
-                              transition: 'transform 0.15s ease',
-                              display: 'flex',
-                              alignItems: 'center',
-                              color: 'var(--figma-color-text-secondary)',
-                              marginRight: '2px',
-                              pointerEvents: 'none'
-                            }}>
-                              <IconChevronDown16 />
+                            {/* Text content wrapper - only this gets opacity on hover */}
+                            <div
+                              className="group-header-text"
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 'var(--spacing-xxs)',
+                                flex: 1,
+                                opacity: 1,
+                                transition: groupKey === '__INVALID__' ? 'none' : 'opacity 0.15s ease',
+                                pointerEvents: 'none'
+                              }}
+                            >
+                              {/* Chevron Icon - Only show for valid groups */}
+                              {groupKey !== '__INVALID__' && (
+                                <div style={{
+                                  transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
+                                  transition: 'transform 0.15s ease',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  color: 'var(--figma-color-text-secondary)',
+                                  marginRight: 'var(--spacing-xxxs)',
+                                }}>
+                                  <IconChevronDown16 />
+                                </div>
+                              )}
+
+                              {/* Title */}
+                              <div style={{
+                                fontSize: 'var(--font-size-sm)',
+                                textTransform: 'uppercase',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 'var(--spacing-xxs)'
+                              }}>
+                                {groupKey === '__INVALID__' ? (
+                                  <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
+                                    Invalid Combinations
+                                  </span>
+                                ) : (
+                                  <>
+                                    <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
+                                      {groupingProperty}:
+                                    </span>
+                                    <span style={{ color: 'var(--text-secondary)' }}>
+                                      {groupKey}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+
+                              {/* Count */}
+                              <Muted style={{ marginLeft: 'var(--spacing-xs)', textTransform: 'uppercase', fontSize: 'var(--font-size-sm)' }}>
+                                {groupKey === '__INVALID__' ? groupCombos.length : `${groupSelectedCount} / ${groupCombos.length}`}
+                              </Muted>
                             </div>
 
-                            {/* Title */}
-                            <Text style={{ fontWeight: 500, color: groupKey === '__INVALID__' ? 'var(--figma-color-text-secondary)' : undefined, pointerEvents: 'none' }}>
-                              {groupKey === '__INVALID__' ? 'Invalid Combinations' : `${groupingProperty}: ${groupKey}`}
-                            </Text>
-
-                            {/* Count */}
-                            <Muted style={{ fontSize: '11px', marginLeft: '2px', pointerEvents: 'none' }}>
-                              ({groupSelectedCount} / {groupCombos.length})
-                            </Muted>
-                            
-                            {/* Select All Checkbox */}
+                            {/* Select All Toggle */}
                             {groupKey !== '__INVALID__' && (
-                              <div style={{ marginLeft: 'auto' }}>
-                                <Checkbox
+                              <div style={{ marginLeft: 'auto' }} onClick={(e: any) => e.stopPropagation()}>
+                                <Toggle
                                   value={groupSelectedCount === groupCombos.length}
                                   onValueChange={(e: any) => {
                                     handleGroupSelectAll(groupCombos)
                                   }}
-                                  onClick={(e: any) => e.stopPropagation()}
                                 >
-                                  <Text>Select {groupKey}</Text>
-                                </Checkbox>
+                                  Select {groupKey}
+                                </Toggle>
                               </div>
                             )}
                           </div>
@@ -1380,21 +1505,11 @@ function Plugin() {
                           {/* Invalid Combinations Summary - Always show for invalid group */}
                           {groupKey === '__INVALID__' && groupCombos.length > 0 && (
                               <div style={{
-                                padding: '12px',
-                                background: 'var(--figma-color-bg-secondary)',
-                                borderRadius: '6px',
-                                border: '1px solid var(--figma-color-border)',
-                                marginBottom: '4px'
+                                paddingLeft: 'var(--spacing-md)',
+                                marginTop: 'var(--spacing-lg)',
+                                marginBottom: 'var(--spacing-sm)'
                               }}>
-                                <div style={{
-                                  fontSize: '11px',
-                                  fontWeight: 600,
-                                  color: 'var(--figma-color-text)',
-                                  marginBottom: '8px'
-                                }}>
-                                  Why these combinations are invalid:
-                                </div>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
                                   {(() => {
                                     // Group invalid combinations by their property signatures
                                     const invalidPatterns = new Map<string, { parts: string[], count: number }>()
@@ -1433,42 +1548,28 @@ function Plugin() {
                                         fontSize: '11px',
                                         color: 'var(--figma-color-text-secondary)',
                                         display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '6px'
+                                        alignItems: 'center'
                                       }}>
-                                        <span style={{
-                                          width: '4px',
-                                          height: '4px',
-                                          borderRadius: '50%',
-                                          background: 'var(--figma-color-text-tertiary)',
-                                          flexShrink: 0
-                                        }} />
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xxs)', flexWrap: 'wrap' }}>
                                           {parts.map((part, idx) => (
                                             <span key={idx}>
                                               <span style={{
-                                                padding: '2px 6px',
-                                                borderRadius: '3px',
-                                                background: 'var(--figma-color-bg-tertiary)',
                                                 fontSize: '10px',
                                                 fontFamily: 'monospace',
-                                                color: 'var(--figma-color-text)',
+                                                color: 'var(--text-primary)',
                                                 whiteSpace: 'nowrap'
                                               }}>
                                                 {part}
                                               </span>
                                               {idx < parts.length - 1 && (
                                                 <span style={{
-                                                  margin: '0 2px',
+                                                  padding: '0 var(--spacing-xxs)',
                                                   color: 'var(--figma-color-text-tertiary)',
                                                   fontSize: '10px'
                                                 }}>+</span>
                                               )}
                                             </span>
                                           ))}
-                                          <span style={{ color: 'var(--figma-color-text-tertiary)', whiteSpace: 'nowrap', marginLeft: '2px' }}>
-                                            ({count} variant{count > 1 ? 's' : ''})
-                                          </span>
                                         </div>
                                       </div>
                                     ))
@@ -1479,7 +1580,7 @@ function Plugin() {
                           
                           {/* Group Items */}
                           {!isCollapsed && (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px', width: '100%' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)', width: '100%' }}>
                             {groupCombos.map((combo, localIndex) => {
                     const key = getCombinationKey(combo)
                     const isSelected = selectedCombinations[key] || false
@@ -1494,9 +1595,9 @@ function Plugin() {
                     if (isInvalid) {
                       bgColor = 'var(--figma-color-bg-disabled)'
                     } else if (isSelected) {
-                      bgColor = 'var(--figma-color-bg-selected)'
+                      bgColor = 'var(--bg-secondary)'
                     } else if (isHovered) {
-                      bgColor = 'var(--figma-color-bg-hover)'
+                      bgColor = 'var(--bg-hover)'
                     }
 
                     return (
@@ -1505,16 +1606,16 @@ function Plugin() {
                         style={{
                           cursor: isInvalid ? 'not-allowed' : 'pointer',
                           background: bgColor,
-                          borderRadius: '6px',
-                          padding: '12px',
-                          border: isInvalid 
-                            ? '1px dashed var(--figma-color-border)' 
-                            : isSelected 
-                              ? '1px solid var(--figma-color-text-brand)' 
+                          borderRadius: '3px',
+                          padding: 'var(--spacing-lg)',
+                          border: isInvalid
+                            ? '1px dashed var(--figma-color-border)'
+                            : isSelected
+                              ? '1px solid var(--border-default)'
                               : '1px solid transparent',
                           display: 'flex',
-                          gap: '12px',
-                          alignItems: 'flex-start',
+                          gap: 'var(--spacing-lg)',
+                          alignItems: 'center',
                           opacity: isInvalid ? 0.5 : 1,
                           position: 'relative'
                         }}
@@ -1527,7 +1628,7 @@ function Plugin() {
                           width: '96px',
                           height: '96px',
                           flexShrink: 0,
-                          borderRadius: '6px',
+                          borderRadius: '3px',
                           overflow: 'hidden',
                           background: 'var(--figma-color-bg-tertiary)',
                           display: 'flex',
@@ -1553,14 +1654,14 @@ function Plugin() {
                         </div>
 
                         {/* Properties */}
-                        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
                           {/* Invalid Combination Badge */}
                           {isInvalid && (
                             <div style={{
                               display: 'inline-flex',
                               alignItems: 'center',
-                              gap: '4px',
-                              padding: '2px 6px',
+                              gap: 'var(--spacing-xxs)',
+                              padding: 'var(--spacing-xxxs) var(--spacing-xs)',
                               borderRadius: '3px',
                               background: 'var(--figma-color-bg-tertiary)',
                               alignSelf: 'flex-start'
@@ -1575,7 +1676,7 @@ function Plugin() {
                             </div>
                           )}
                           
-                          <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                          <div style={{ display: 'flex', gap: 'var(--spacing-lg)', alignItems: 'center' }}>
                           {combo.properties && Object.keys(combo.properties).length > 0 && (() => {
                             // Separate boolean and variant properties
                             const boolProps: [string, any][] = []
@@ -1601,25 +1702,18 @@ function Plugin() {
                               <>
                                 {/* Variant Properties (Left) */}
                                 {variantProps.length > 0 && (
-                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: '0 0 auto' }}>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xxs)', flex: '0 0 auto' }}>
                                     {variantProps.map(([key, value]) => (
                                       <div
                                         key={key}
                                         style={{
                                           display: 'flex',
                                           alignItems: 'center',
-                                          fontSize: '11px'
+                                          fontSize: 'var(--font-size-sm)',
+                                          color: 'var(--figma-color-text)'
                                         }}
                                       >
-                                        <span style={{
-                                          color: 'var(--figma-color-text)',
-                                          fontWeight: 500,
-                                          padding: '2px 8px',
-                                          borderRadius: '3px',
-                                          background: 'var(--figma-color-bg-brand-tertiary)'
-                                        }}>
-                                          {String(value)}
-                                        </span>
+                                        {String(value)}
                                       </div>
                                     ))}
                                   </div>
@@ -1627,7 +1721,7 @@ function Plugin() {
 
                                 {/* Boolean Properties (Right) */}
                                 {boolProps.length > 0 && (
-                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginLeft: 'auto', alignItems: 'flex-end' }}>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xxs)', marginLeft: 'auto', alignItems: 'flex-end' }}>
                                     {boolProps.map(([key, value]) => {
                                       const strValue = String(value).toLowerCase()
                                       const boolValue = strValue === 'true'
@@ -1638,30 +1732,11 @@ function Plugin() {
                                           style={{
                                             display: 'flex',
                                             alignItems: 'center',
-                                            gap: '6px',
-                                            fontSize: '11px'
+                                            fontSize: 'var(--font-size-sm)',
+                                            color: boolValue ? 'var(--figma-color-text)' : 'var(--figma-color-text-tertiary)'
                                           }}
                                         >
-                                          <span style={{
-                                            color: 'var(--figma-color-text-secondary)'
-                                          }}>
-                                            {key}
-                                          </span>
-                                          <span style={{
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            padding: '2px',
-                                            borderRadius: '3px',
-                                            background: boolValue
-                                              ? 'var(--figma-color-bg-success)'
-                                              : 'var(--figma-color-bg-secondary)',
-                                            fontSize: '10px',
-                                            color: boolValue ? 'var(--figma-color-text-onbrand)' : 'var(--figma-color-text-tertiary)',
-                                            fontWeight: 600,
-                                            lineHeight: 1
-                                          }}>
-                                            {boolValue ? '✓' : '✗'}
-                                          </span>
+                                          {key}: {boolValue ? '✓' : '✗'}
                                         </div>
                                       )
                                     })}
@@ -1674,40 +1749,68 @@ function Plugin() {
                           
                         </div>
                         
-                        {/* Select Across Groups Button - Centered absolutely, only show on hover */}
-                        {!isInvalid && isHovered && groupingProperty && Object.keys(groupedCombinations).length > 1 && (
-                          <div style={{
-                            position: 'absolute',
-                            top: '50%',
-                            left: '50%',
-                            transform: 'translate(-50%, -50%)',
-                            pointerEvents: 'none'
-                          }}>
-                            <Button
-                              secondary
-                              onClick={(e: any) => {
-                                e.stopPropagation()
-                                handleSelectAcrossGroups(combo, groupingProperty)
-                              }}
-                              onMouseEnter={(e: any) => {
-                                e.currentTarget.style.background = 'var(--figma-color-bg-hover)'
-                                e.currentTarget.style.borderColor = 'var(--figma-color-text-brand)'
-                              }}
-                              onMouseLeave={(e: any) => {
-                                e.currentTarget.style.background = ''
-                                e.currentTarget.style.borderColor = ''
-                              }}
-                              style={{ 
-                                fontSize: '11px', 
-                                padding: '4px 8px',
-                                pointerEvents: 'auto',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              Select in All Groups
-                            </Button>
-                          </div>
-                        )}
+                        {/* Select Across Groups Button - Centered, only show on hover */}
+                        {!isInvalid && groupingProperty && Object.keys(groupedCombinations).length > 1 && (() => {
+                          // Check if all matching combos across groups are selected
+                          const matchingCombos = sortedCombinations.filter((c: any) => {
+                            if (c.isValidCombination === false) return false
+                            for (const propName in combo.properties) {
+                              if (propName === groupingProperty) continue
+                              if (c.properties[propName] !== combo.properties[propName]) {
+                                return false
+                              }
+                            }
+                            return true
+                          })
+                          
+                          const allSelected = matchingCombos.every(c => selectedCombinations[getCombinationKey(c)])
+                          
+                          // Show button on hover OR when all are selected
+                          if (!isHovered && !allSelected) return null
+                          
+                          return (
+                            <div style={{
+                              position: 'absolute',
+                              top: '50%',
+                              left: '50%',
+                              transform: 'translate(-50%, -50%)',
+                              pointerEvents: 'none'
+                            }}>
+                              <button
+                                onClick={(e: any) => {
+                                  e.stopPropagation()
+                                  handleSelectAcrossGroups(combo, groupingProperty)
+                                }}
+                                style={{
+                                  minWidth: '50px',
+                                  height: '24px',
+                                  padding: '0 var(--spacing-xxs)',
+                                  fontSize: '10px',
+                                  fontFamily: "'IBM Plex Mono', monospace",
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '1px',
+                                  borderRadius: '3px',
+                                  border: 'none',
+                                  background: allSelected ? 'var(--button-tertiary-bgActive)' : 'var(--button-tertiary-bg)',
+                                  color: 'var(--text-primary)',
+                                  cursor: 'pointer',
+                                  pointerEvents: 'auto',
+                                  transition: 'background-color 0.15s ease',
+                                }}
+                                onMouseEnter={(e: any) => {
+                                  e.currentTarget.style.background = 'var(--button-tertiary-bgHover)'
+                                }}
+                                onMouseLeave={(e: any) => {
+                                  e.currentTarget.style.background = allSelected ? 'var(--button-tertiary-bgActive)' : 'var(--button-tertiary-bg)'
+                                }}
+                              >
+                                {allSelected 
+                                  ? <><span style={{ marginRight: '4px' }}>✗</span>Deselect from All Groups</>
+                                  : 'Select in All Groups'}
+                              </button>
+                            </div>
+                          )
+                        })()}
                       </div>
                     )
                   })}
@@ -1718,7 +1821,7 @@ function Plugin() {
                     })
                   ) : (
                     /* Fallback for no grouping - render ungrouped items */
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)', width: '100%' }}>
                     {sortedCombinations.map((combo, index) => {
                       const key = getCombinationKey(combo)
                       const isSelected = selectedCombinations[key] || false
@@ -1727,30 +1830,30 @@ function Plugin() {
                       const isInvalid = combo.isValidCombination === false
 
                       let bgColor = 'transparent'
-                      if (isInvalid) {
-                        bgColor = 'var(--figma-color-bg-disabled)'
-                      } else if (isSelected) {
-                        bgColor = 'var(--figma-color-bg-selected)'
-                      } else if (isHovered) {
-                        bgColor = 'var(--figma-color-bg-hover)'
-                      }
+                    if (isInvalid) {
+                      bgColor = 'var(--figma-color-bg-disabled)'
+                    } else if (isSelected) {
+                      bgColor = 'var(--bg-secondary)'
+                    } else if (isHovered) {
+                      bgColor = 'var(--bg-hover)'
+                    }
 
                       return (
                         <div
                           key={index}
                           style={{
                             cursor: isInvalid ? 'not-allowed' : 'pointer',
-                            background: bgColor,
-                            borderRadius: '6px',
-                            padding: '12px',
+                          background: bgColor,
+                          borderRadius: '3px',
+                            padding: 'var(--spacing-lg)',
                             border: isInvalid
                               ? '1px dashed var(--figma-color-border)'
                               : isSelected
                                 ? '1px solid var(--figma-color-text-brand)'
                                 : '1px solid transparent',
                             display: 'flex',
-                            gap: '12px',
-                            alignItems: 'flex-start',
+                            gap: 'var(--spacing-lg)',
+                            alignItems: 'center',
                             opacity: isInvalid ? 0.5 : 1,
                             position: 'relative'
                           }}
@@ -1759,11 +1862,11 @@ function Plugin() {
                           onClick={(e: any) => !isInvalid && handleCombinationToggle(key, index, e.shiftKey)}
                         >
                           {/* Thumbnail */}
-                          <div style={{
-                            width: '96px',
-                            height: '96px',
-                            flexShrink: 0,
-                            borderRadius: '6px',
+                        <div style={{
+                          width: '96px',
+                          height: '96px',
+                          flexShrink: 0,
+                          borderRadius: '3px',
                             overflow: 'hidden',
                             background: 'var(--figma-color-bg-tertiary)',
                             display: 'flex',
@@ -1789,14 +1892,14 @@ function Plugin() {
                           </div>
 
                           {/* Properties */}
-                          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
                             {/* Invalid Combination Badge */}
                             {isInvalid && (
                               <div style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
-                                gap: '4px',
-                                padding: '2px 6px',
+                                gap: 'var(--spacing-xxs)',
+                                padding: 'var(--spacing-xxxs) var(--spacing-xs)',
                                 borderRadius: '3px',
                                 background: 'var(--figma-color-bg-tertiary)',
                                 alignSelf: 'flex-start'
@@ -1811,7 +1914,7 @@ function Plugin() {
                               </div>
                             )}
 
-                            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                            <div style={{ display: 'flex', gap: 'var(--spacing-lg)', alignItems: 'center' }}>
                             {combo.properties && Object.keys(combo.properties).length > 0 && (() => {
                               // Separate boolean and variant properties
                               const boolProps: [string, any][] = []
@@ -1833,25 +1936,18 @@ function Plugin() {
                                 <>
                                   {/* Variant Properties (Left) */}
                                   {variantProps.length > 0 && (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: '0 0 auto' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xxs)', flex: '0 0 auto' }}>
                                       {variantProps.map(([key, value]) => (
                                         <div
                                           key={key}
                                           style={{
                                             display: 'flex',
                                             alignItems: 'center',
-                                            fontSize: '11px'
+                                            fontSize: 'var(--font-size-sm)',
+                                            color: 'var(--figma-color-text)'
                                           }}
                                         >
-                                          <span style={{
-                                            color: 'var(--figma-color-text)',
-                                            fontWeight: 500,
-                                            padding: '2px 8px',
-                                            borderRadius: '3px',
-                                            background: 'var(--figma-color-bg-brand-tertiary)'
-                                          }}>
-                                            {String(value)}
-                                          </span>
+                                          {String(value)}
                                         </div>
                                       ))}
                                     </div>
@@ -1859,7 +1955,7 @@ function Plugin() {
 
                                   {/* Boolean Properties (Right) */}
                                   {boolProps.length > 0 && (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginLeft: 'auto', alignItems: 'flex-end' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xxs)', marginLeft: 'auto', alignItems: 'flex-end' }}>
                                       {boolProps.map(([key, value]) => {
                                         const strValue = String(value).toLowerCase()
                                         const boolValue = strValue === 'true'
@@ -1870,30 +1966,11 @@ function Plugin() {
                                             style={{
                                               display: 'flex',
                                               alignItems: 'center',
-                                              gap: '6px',
-                                              fontSize: '11px'
+                                              fontSize: 'var(--font-size-sm)',
+                                              color: boolValue ? 'var(--figma-color-text)' : 'var(--figma-color-text-tertiary)'
                                             }}
                                           >
-                                            <span style={{
-                                              color: 'var(--figma-color-text-secondary)'
-                                            }}>
-                                              {key}
-                                            </span>
-                                            <span style={{
-                                              display: 'inline-flex',
-                                              alignItems: 'center',
-                                              padding: '2px',
-                                              borderRadius: '3px',
-                                              background: boolValue
-                                                ? 'var(--figma-color-bg-success)'
-                                                : 'var(--figma-color-bg-secondary)',
-                                              fontSize: '10px',
-                                              color: boolValue ? 'var(--figma-color-text-onbrand)' : 'var(--figma-color-text-tertiary)',
-                                              fontWeight: 600,
-                                              lineHeight: 1
-                                            }}>
-                                              {boolValue ? '✓' : '✗'}
-                                            </span>
+                                            {key}: {boolValue ? '✓' : '✗'}
                                           </div>
                                         )
                                       })}
@@ -1920,64 +1997,40 @@ function Plugin() {
 
       {/* Sticky Generate Buttons */}
       <div style={{
-        padding: '12px',
         background: 'var(--figma-color-bg)',
-        borderTop: '1px solid var(--figma-color-border)',
         flexShrink: 0
       }}>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <Button fullWidth onClick={() => setIsLayoutModalOpen(true)} disabled={!hasSelection}>
-            Preview Layout
-          </Button>
-          <Button fullWidth secondary onClick={() => handleGenerate()} disabled={!hasSelection}>
-            Generate
-          </Button>
-        </div>
-      </div>
-      </div>
-
-      {/* Component Data Modal */}
-      {isComponentDataModalOpen && (
-        <Modal
-          open={isComponentDataModalOpen}
-          title="Add Component Data"
-          onCloseButtonClick={() => setIsComponentDataModalOpen(false)}
-        >
-          <div style={{ padding: '12px' }}>
-            <div style={{ marginBottom: '12px' }}>
-              <Muted>Paste component data (YAML) to filter variants to only valid combinations</Muted>
-            </div>
-            <TextboxMultiline
-              value={componentDataInput}
-              onValueInput={setComponentDataInput}
-              placeholder="Paste Anova YAML data here..."
-              rows={12}
-            />
-            {componentDataError && (
-              <div style={{ marginTop: '8px', color: 'var(--figma-color-text-danger)', fontSize: '11px' }}>
-                {componentDataError}
-              </div>
-            )}
-            {componentDataSpec && (
-              <div style={{ marginTop: '8px', color: 'var(--figma-color-text-success)', fontSize: '11px' }}>
-                ✓ Loaded: {componentDataSpec.title}
-              </div>
-            )}
-            <VerticalSpace space="medium" />
-            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-              <Button secondary onClick={() => setIsComponentDataModalOpen(false)}>
-                Cancel
+        {!hasSelection ? (
+          <Tooltip content="Please select at least one item" position="top" fullWidth>
+            <div style={{ display: 'flex', width: '100%' }}>
+              <Button fullWidth style={{ borderRadius: 0, height: '52px', justifyContent: 'flex-start', border: 'none' }} onClick={() => setIsLayoutModalOpen(true)} disabled={!hasSelection}>
+                <div style={{ transform: 'rotate(45deg)', display: 'flex', alignItems: 'center', pointerEvents: 'none' }}>
+                  <IconComponent16 />
+                </div>
+                <span style={{ marginLeft: 'var(--spacing-sm)', pointerEvents: 'none' }}>Preview Layout</span>
               </Button>
-              <Button onClick={() => {
-                handleComponentDataParse()
-                setIsComponentDataModalOpen(false)
-              }}>
-                Apply Filter
+              <Button style={{ borderRadius: 0, height: '52px', justifyContent: 'center', border: 'none', paddingLeft: 'var(--spacing-xl)', paddingRight: 'var(--spacing-xl)' }} onClick={() => handleGenerate()} disabled={!hasSelection}>
+                <IconAi16 style={{ pointerEvents: 'none' }} />
               </Button>
             </div>
+          </Tooltip>
+        ) : (
+          <div style={{ display: 'flex', width: '100%' }}>
+            <Button fullWidth style={{ borderRadius: 0, height: '52px', justifyContent: 'flex-start', border: 'none' }} onClick={() => setIsLayoutModalOpen(true)} disabled={!hasSelection}>
+              <div style={{ transform: 'rotate(45deg)', display: 'flex', alignItems: 'center', pointerEvents: 'none' }}>
+                <IconComponent16 />
+              </div>
+              <span style={{ marginLeft: 'var(--spacing-sm)', pointerEvents: 'none' }}>Preview Layout</span>
+            </Button>
+            <Tooltip content="Generate Stickersheet" position="left" variant="dark">
+              <Button style={{ borderRadius: 0, height: '52px', justifyContent: 'center', border: 'none', paddingLeft: 'var(--spacing-xl)', paddingRight: 'var(--spacing-xl)' }} onClick={() => handleGenerate()} disabled={!hasSelection}>
+                <IconAi16 style={{ pointerEvents: 'none' }} />
+              </Button>
+            </Tooltip>
           </div>
-        </Modal>
-      )}
+        )}
+      </div>
+      </div>
 
       {/* Layout Preview Modal */}
       {isLayoutModalOpen && (() => {
@@ -2030,6 +2083,30 @@ function Plugin() {
 
         // State for excluded cells
         const [excludedCells, setExcludedCells] = useState<Set<string>>(new Set())
+        
+        // State for table scroll (to show/hide gradient)
+        const [showScrollGradient, setShowScrollGradient] = useState(false)
+        const tableContainerRef = useRef<HTMLDivElement>(null)
+        
+        // Check if table needs scroll gradient
+        const checkScrollGradient = () => {
+          const container = tableContainerRef.current
+          if (!container) return
+          
+          const hasHorizontalScroll = container.scrollWidth > container.clientWidth
+          const isAtEnd = container.scrollLeft + container.clientWidth >= container.scrollWidth - 1
+          
+          setShowScrollGradient(hasHorizontalScroll && !isAtEnd)
+        }
+        
+        // Check gradient on mount and when table data changes
+        useEffect(() => {
+          // Add small delay to ensure DOM is fully rendered
+          const timeout = setTimeout(() => {
+            checkScrollGradient()
+          }, 100)
+          return () => clearTimeout(timeout)
+        }, [currentRowProp, currentColProps, propValues])
 
         // Create a unique key for a cell based on row + column combination
         const getCellKey = (rowValue: string, colCombo: any[]) => {
@@ -2050,31 +2127,62 @@ function Plugin() {
 
         return (
           <Modal
-            open={isLayoutModalOpen}
-            title="Configure Layout"
-            onCloseButtonClick={() => setIsLayoutModalOpen(false)}
+            isOpen={isLayoutModalOpen}
+          title="Layout Preview & Cell Exclusion"
+          onClose={() => setIsLayoutModalOpen(false)}
+          footer={
+            <div style={{ display: 'flex', margin: 0, padding: 0 }}>
+              <Button fullWidth style={{ borderRadius: 0, height: '52px', justifyContent: 'flex-start', border: 'none' }} onClick={() => {
+                if (!currentRowProp) return
+
+                // Filter out excluded combinations before generating
+                const combinationsToGenerate = selectedCombos.filter(combo => {
+                  // Build the cell key for this combination
+                  const rowValue = String(combo.properties[currentRowProp])
+                  const colCombo = currentColProps.map(prop => String(combo.properties[prop]))
+                  const cellKey = getCellKey(rowValue, colCombo)
+
+                  // Include if not excluded
+                  return !excludedCells.has(cellKey)
+                })
+
+                console.log('🎨 Generating with exclusions:', {
+                  total: selectedCombos.length,
+                  excluded: excludedCells.size,
+                  toGenerate: combinationsToGenerate.length
+                })
+
+                // Generate directly with filtered combinations
+                handleGenerate(combinationsToGenerate)
+                setIsLayoutModalOpen(false)
+              }} disabled={!currentRowProp || currentColProps.length === 0}>
+                <IconAi16 style={{ pointerEvents: 'none' }} />
+                <span style={{ marginLeft: 'var(--spacing-sm)', pointerEvents: 'none' }}>Generate</span>
+              </Button>
+              <Tooltip content="Cancel" position="left" variant="dark">
+                <Button style={{ borderRadius: 0, height: '52px', justifyContent: 'center', border: 'none', padding: 'var(--spacing-sm)', width: '52px', flexShrink: 0 }} onClick={() => setIsLayoutModalOpen(false)}>
+                  <IconClose16 style={{ pointerEvents: 'none' }} />
+                </Button>
+              </Tooltip>
+            </div>
+          }
           >
-            <div style={{
-              padding: '16px',
-              maxWidth: '568px',
-              width: '100%',
-              boxSizing: 'border-box'
-            }}>
               {propArray.length < 2 ? (
                 <div>
                   <Muted>Need at least 2 varying properties to customize layout</Muted>
                 </div>
               ) : (
                 <>
-                  <Muted style={{ fontSize: '11px', marginBottom: '12px', display: 'block' }}>
+                  <Muted style={{ fontSize: '11px', marginBottom: 'var(--spacing-lg)', display: 'block', textTransform: 'uppercase', letterSpacing: 'var(--type-heading-section-letterSpacing)' }}>
                     Assign each property to Row or Column
                   </Muted>
 
-                  <div style={{ marginBottom: '16px' }}>
+                  <div style={{ marginBottom: 'var(--spacing-xl)' }}>
                     {/* Property Assignment List */}
-                    {propArray.map(prop => {
+                    {propArray.map((prop, index) => {
                       const isRowProp = currentRowProp === prop
                       const isColProp = currentColProps.includes(prop)
+                      const isLast = index === propArray.length - 1
 
                       return (
                         <div
@@ -2084,12 +2192,12 @@ function Plugin() {
                             justifyContent: 'space-between',
                             alignItems: 'center',
                             padding: '8px 0',
-                            borderBottom: '1px solid var(--figma-color-border)'
+                            borderBottom: isLast ? 'none' : '1px solid var(--border-subtle)'
                           }}
                         >
                           {/* Property Name & Info */}
                           <div style={{ flex: 1 }}>
-                            <Text style={{ fontSize: '11px', display: 'block', marginBottom: '2px' }}>
+                            <Text style={{ fontSize: '11px', display: 'block', marginBottom: 'var(--spacing-xxxs)' }}>
                               {prop}
                             </Text>
                             {propValues[prop] && (
@@ -2101,9 +2209,9 @@ function Plugin() {
                           </div>
 
                           {/* Row/Column Buttons */}
-                          <div style={{ display: 'flex', gap: '4px', marginLeft: '12px' }}>
-                            <Button
-                              secondary={!isRowProp}
+                          <div style={{ display: 'flex', gap: 'var(--spacing-xxs)', marginLeft: 'var(--spacing-lg)' }}>
+                            <ToggleButton
+                              selected={isRowProp}
                               onClick={() => {
                                 setLayoutRowProperty(prop)
                                 // Remove from columns if selected as row
@@ -2111,98 +2219,56 @@ function Plugin() {
                                   setLayoutColumnProperties(currentColProps.filter(p => p !== prop))
                                 }
                               }}
-                              style={{
-                                minWidth: '50px',
-                                padding: '4px 8px',
-                                fontSize: '10px'
-                              }}
                             >
                               Row
-                            </Button>
-                            <Button
-                              secondary={!isColProp}
+                            </ToggleButton>
+                            <ToggleButton
+                              selected={isColProp}
                               disabled={isRowProp}
                               onClick={() => handleColumnToggle(prop)}
-                              style={{
-                                minWidth: '50px',
-                                padding: '4px 8px',
-                                fontSize: '10px'
-                              }}
                             >
                               Column
-                            </Button>
+                            </ToggleButton>
                           </div>
                         </div>
                       )
                     })}
                   </div>
 
-                    {/* Visual Matrix Preview - More Context Rich */}
+                    {/* Visual Matrix Preview */}
                     {currentRowProp && currentColProps.length > 0 && (
-                      <div style={{
-                        padding: '16px',
-                        background: 'var(--figma-color-bg-secondary)',
-                        borderRadius: '6px',
-                        border: '1px solid var(--figma-color-border)'
-                      }}>
-                        <div style={{ marginBottom: '12px' }}>
-                          <Text style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: '4px' }}>
-                            Layout Preview
-                          </Text>
-                          <Muted style={{ fontSize: '10px' }}>
-                            {propValues[currentRowProp]?.length || 0} rows × {
-                              currentColProps.reduce((sum, prop) =>
-                                sum * (propValues[prop]?.length || 1), 1)
-                            } columns = {(propValues[currentRowProp]?.length || 0) *
-                            currentColProps.reduce((sum, prop) =>
-                              sum * (propValues[prop]?.length || 1), 1)} total cells
-                            {excludedCells.size > 0 && (
-                              <span style={{ color: 'var(--figma-color-text-danger)' }}>
-                                {' '}({excludedCells.size} excluded)
-                              </span>
-                            )}
-                          </Muted>
-                        </div>
-
-                        {/* Exclusion hint */}
-                        <div style={{ marginBottom: '8px' }}>
-                          <Muted style={{ fontSize: '10px' }}>
-                            💡 Click any cell to exclude it from generation
-                          </Muted>
-                        </div>
-
-                        {/* Scrollable container with shadow hints */}
-                        <div style={{
-                          position: 'relative',
-                          borderRadius: '4px',
-                          border: '1px solid var(--figma-color-border)',
-                          background: 'var(--figma-color-bg)',
-                          width: '100%',
-                          maxWidth: '536px'
-                        }}>
-                          {/* Scroll hint overlay - right side */}
-                          <div style={{
-                            position: 'absolute',
-                            top: 0,
-                            right: 0,
-                            bottom: '30px',
-                            width: '40px',
-                            background: 'linear-gradient(to left, var(--figma-color-bg-secondary) 0%, transparent 100%)',
-                            pointerEvents: 'none',
-                            zIndex: 3,
-                            borderRadius: '0 4px 0 0'
-                          }} />
-
-                          {/* Grid visualization with actual values */}
-                          <div style={{
-                            fontSize: '10px',
-                            overflowX: 'scroll',
-                            overflowY: 'scroll',
-                            maxHeight: '350px',
-                            width: '100%',
-                            WebkitOverflowScrolling: 'touch',
-                            position: 'relative'
+                      <div>
+                        <div style={{ marginBottom: 'var(--spacing-lg)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <div style={{ 
+                            fontSize: 'var(--type-heading-section-fontSize)',
+                            fontWeight: 'var(--type-heading-section-fontWeight)',
+                            letterSpacing: 'var(--type-heading-section-letterSpacing)',
+                            textTransform: 'var(--type-heading-section-textTransform)',
+                            color: 'var(--text-primary)'
                           }}>
+                            Layout Preview
+                          </div>
+                          {excludedCells.size > 0 && (
+                            <Muted style={{ fontSize: '10px' }}>
+                              <span style={{ color: 'var(--figma-color-text-danger)' }}>
+                                {excludedCells.size} excluded
+                              </span>
+                            </Muted>
+                          )}
+                        </div>
+
+                        {/* Table container */}
+                        <div style={{ position: 'relative' }}>
+                          <div 
+                            ref={tableContainerRef}
+                            onScroll={checkScrollGradient}
+                            style={{
+                              overflowX: 'auto',
+                              overflowY: 'auto',
+                              maxHeight: '350px',
+                              width: '100%',
+                              maxWidth: '536px'
+                            }}>
                           <table style={{
                             width: 'auto',
                             borderCollapse: 'separate',
@@ -2215,15 +2281,15 @@ function Plugin() {
                                   padding: '8px 12px',
                                   textAlign: 'left',
                                   fontWeight: 600,
-                                  fontSize: '11px',
-                                  color: 'var(--figma-color-text)',
-                                  background: 'var(--figma-color-bg-secondary)',
+                                  fontSize: '10px',
+                                  color: 'var(--text-primary)',
+                                  background: 'var(--bg-primary)',
                                   position: 'sticky',
                                   top: 0,
                                   left: 0,
                                   zIndex: 3,
-                                  borderBottom: '2px solid var(--figma-color-border)',
-                                  borderRight: '2px solid var(--figma-color-border)',
+                                  borderBottom: '1px solid var(--border-subtle)',
+                                  borderRight: '1px solid var(--border-subtle)',
                                   minWidth: '100px'
                                 }}>
                                   ↓ {currentRowProp}
@@ -2258,28 +2324,41 @@ function Plugin() {
                                       textAlign: 'left',
                                       fontWeight: 600,
                                       fontSize: '10px',
-                                      color: 'var(--figma-color-text)',
-                                      background: 'var(--figma-color-bg)',
+                                      color: 'var(--text-primary)',
+                                      background: 'var(--bg-primary)',
                                       position: 'sticky',
                                       top: 0,
                                       zIndex: 1,
-                                      borderBottom: '2px solid var(--figma-color-border)',
-                                      borderLeft: idx === 0 ? 'none' : '1px solid var(--figma-color-border)',
+                                      borderBottom: '1px solid var(--border-subtle)',
+                                      borderLeft: idx === 0 ? 'none' : '1px solid var(--border-subtle)',
                                       minWidth: '100px',
                                       maxWidth: '200px',
                                       whiteSpace: 'normal',
                                       verticalAlign: 'top'
                                     }}>
-                                      {currentColProps.map((prop, propIdx) => (
-                                        <div key={propIdx} style={{
-                                          marginBottom: propIdx < currentColProps.length - 1 ? '4px' : 0,
-                                          fontSize: '9px',
-                                          color: 'var(--figma-color-text-secondary)',
-                                          lineHeight: '1.3'
-                                        }}>
-                                          <span style={{ fontWeight: 600, color: 'var(--figma-color-text)' }}>{prop}:</span> {combo[propIdx]}
-                                        </div>
-                                      ))}
+                                      {currentColProps.map((prop, propIdx) => {
+                                        const value = combo[propIdx];
+                                        return (
+                                          <div key={propIdx} style={{
+                                            marginBottom: propIdx < currentColProps.length - 1 ? 'var(--spacing-xxxs)' : 0,
+                                            fontSize: '9px',
+                                            color: 'var(--text-secondary)',
+                                            lineHeight: '1.3',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 'var(--spacing-xxxs)'
+                                          }}>
+                                            <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{prop}:</span>
+                                            {String(value).toLowerCase() === 'true' ? (
+                                              <span style={{ fontSize: '12px' }}>✓</span>
+                                            ) : String(value).toLowerCase() === 'false' ? (
+                                              <span style={{ fontSize: '12px' }}>✗</span>
+                                            ) : (
+                                              value
+                                            )}
+                                          </div>
+                                        );
+                                      })}
                                     </th>
                                   ))
                                 })()}
@@ -2290,15 +2369,15 @@ function Plugin() {
                                 <tr key={rowIdx}>
                                   <td style={{
                                     padding: '8px 12px',
-                                    fontSize: '11px',
+                                    fontSize: '10px',
                                     fontWeight: 600,
-                                    color: 'var(--figma-color-text)',
-                                    background: 'var(--figma-color-bg-secondary)',
+                                    color: 'var(--text-primary)',
+                                    background: 'var(--bg-primary)',
                                     position: 'sticky',
                                     left: 0,
                                     zIndex: 1,
-                                    borderRight: '2px solid var(--figma-color-border)',
-                                    borderBottom: '1px solid var(--figma-color-border)',
+                                    borderRight: '1px solid var(--border-subtle)',
+                                    borderBottom: '1px solid var(--border-subtle)',
                                     minWidth: '100px'
                                   }}>
                                     {rowValue}
@@ -2344,15 +2423,15 @@ function Plugin() {
                                             padding: '4px',
                                             fontSize: '10px',
                                             textAlign: 'center',
-                                            background: 'var(--figma-color-bg-secondary)',
-                                            borderBottom: '1px solid var(--figma-color-border)',
-                                            borderLeft: colIdx === 0 ? 'none' : '1px solid var(--figma-color-border)',
+                                            background: 'var(--bg-primary)',
+                                            borderBottom: '1px solid var(--border-subtle)',
+                                            borderLeft: colIdx === 0 ? 'none' : '1px solid var(--border-subtle)',
                                             opacity: 0.3
                                           }}>
                                             <div style={{
                                               padding: '8px 12px',
                                               fontSize: '10px',
-                                              color: 'var(--figma-color-text-disabled)'
+                                              color: 'var(--text-secondary)'
                                             }}>
                                               —
                                             </div>
@@ -2365,43 +2444,22 @@ function Plugin() {
 
                                       return (
                                         <td key={colIdx} style={{
-                                          padding: '4px',
+                                          padding: '8px 12px',
                                           fontSize: '10px',
                                           textAlign: 'center',
-                                          background: 'var(--figma-color-bg)',
-                                          borderBottom: '1px solid var(--figma-color-border)',
-                                          borderLeft: colIdx === 0 ? 'none' : '1px solid var(--figma-color-border)',
-                                          cursor: 'pointer'
-                                        }}
-                                        onClick={() => toggleCellExclusion(rowValue, combo)}
-                                        >
+                                          background: 'var(--bg-primary)',
+                                          borderBottom: '1px solid var(--border-subtle)',
+                                          borderLeft: colIdx === 0 ? 'none' : '1px solid var(--border-subtle)'
+                                        }}>
                                           <div style={{
-                                            display: 'inline-flex',
+                                            display: 'flex',
                                             alignItems: 'center',
-                                            justifyContent: 'center',
-                                            padding: '8px 12px',
-                                            background: isExcluded
-                                              ? 'var(--figma-color-bg-secondary)'
-                                              : 'var(--figma-color-bg-brand-tertiary)',
-                                            borderRadius: '3px',
-                                            fontSize: '10px',
-                                            fontWeight: 500,
-                                            color: isExcluded
-                                              ? 'var(--figma-color-text-disabled)'
-                                              : 'var(--figma-color-text-brand)',
-                                            opacity: isExcluded ? 0.5 : 1,
-                                            transition: 'all 0.15s ease',
-                                            minWidth: '40px',
-                                            textDecoration: isExcluded ? 'line-through' : 'none'
-                                          }}
-                                          onMouseEnter={(e) => {
-                                            e.currentTarget.style.transform = 'scale(1.05)'
-                                          }}
-                                          onMouseLeave={(e) => {
-                                            e.currentTarget.style.transform = 'scale(1)'
-                                          }}
-                                          >
-                                            {isExcluded ? '✗' : '✓'}
+                                            justifyContent: 'center'
+                                          }}>
+                                            <Checkbox
+                                              value={!isExcluded}
+                                              onChange={() => toggleCellExclusion(rowValue, combo)}
+                                            />
                                           </div>
                                         </td>
                                       )
@@ -2412,55 +2470,28 @@ function Plugin() {
                             </tbody>
                           </table>
                           </div>
-                          {/* End scroll container */}
-
-                          {/* Scroll hint text */}
-                          <div style={{
-                            marginTop: '8px',
-                            textAlign: 'center'
-                          }}>
-                            <Muted style={{ fontSize: '9px' }}>
-                              ← Scroll to see all columns →
-                            </Muted>
-                          </div>
+                          
+                          {/* Scroll gradient indicator */}
+                          {showScrollGradient && (
+                            <div style={{
+                              position: 'absolute',
+                              top: 0,
+                              right: 0,
+                              bottom: 0,
+                              width: '60px',
+                              background: 'linear-gradient(to left, var(--bg-primary) 0%, var(--bg-primary) 10%, transparent 100%)',
+                              pointerEvents: 'none',
+                              zIndex: 2
+                            }} />
+                          )}
                         </div>
+
+                        
                       </div>
                     )}
 
-                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                    <Button secondary onClick={() => setIsLayoutModalOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button onClick={() => {
-                      if (!currentRowProp) return
-
-                      // Filter out excluded combinations before generating
-                      const combinationsToGenerate = selectedCombos.filter(combo => {
-                        // Build the cell key for this combination
-                        const rowValue = String(combo.properties[currentRowProp])
-                        const colCombo = currentColProps.map(prop => String(combo.properties[prop]))
-                        const cellKey = getCellKey(rowValue, colCombo)
-
-                        // Include if not excluded
-                        return !excludedCells.has(cellKey)
-                      })
-
-                      console.log('🎨 Generating with exclusions:', {
-                        total: selectedCombos.length,
-                        excluded: excludedCells.size,
-                        toGenerate: combinationsToGenerate.length
-                      })
-
-                      // Generate directly with filtered combinations
-                      handleGenerate(combinationsToGenerate)
-                      setIsLayoutModalOpen(false)
-                    }} disabled={!currentRowProp || currentColProps.length === 0}>
-                      Generate Sticker Sheet
-                    </Button>
-                  </div>
-                </>
-              )}
-            </div>
+              </>
+            )}
           </Modal>
         )
       })()}
